@@ -2,6 +2,7 @@
 import numpy as np
 import cv2
 from rtree import index
+from RRTPlannerMapPyglet import RRTPlanner
 
 def load_map(map_name):
     # Load drawing
@@ -58,6 +59,23 @@ def main():
     map_name = 'smile1.png'
     
     scene_map = load_map(map_name)
+    
+    ## Call RRT
+    rows, cols = scene_map.shape
+    rrt_planner = RRTPlanner(x_init,
+                             x_goal,
+                             goal_radius,
+                             steer_delta,
+                             map_name,
+                             scene_map,
+                             search_window,
+                             cols,
+                             rows,
+                             num_nodes,
+                             font_size)
+
+    rrt_planner.run()
+
 
 if __name__ == '__main__':
 
