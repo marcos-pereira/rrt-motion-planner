@@ -9,7 +9,10 @@ pip install rtree
 pip install -U scikit-learn
 pip install pyglet --user
 ```
+
 Next, run the main.py:
 ```
 python3 main.py
 ```
+
+Close the loaded map window. A black window will open. Press `s` to start planning.
