@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 from rtree import index
 from RRTPlannerMapPyglet import RRTPlanner
+from RRTStarPlannerMapPyglet import RRTStarPlanner
 
 def load_map(map_name):
     # Load drawing
@@ -73,6 +74,22 @@ def main():
                              rows,
                              num_nodes,
                              font_size)
+
+    rrt_planner.run()
+    
+    ## Call RRTStar
+    rows, cols = scene_map.shape
+    rrt_planner = RRTStarPlanner(x_init,
+                                 x_goal,
+                                 goal_radius,
+                                 steer_delta,
+                                 map_name,
+                                 scene_map,
+                                 search_window,
+                                 cols,
+                                 rows,
+                                 num_nodes,
+                                 font_size)
 
     rrt_planner.run()
 
