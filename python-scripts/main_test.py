@@ -32,7 +32,7 @@ def main():
                              num_nodes,
                              font_size)
 
-    rrt_planner.run()
+    rrt_planner.run_test()
     
     ## Call RRTStar
     rows, cols = scene_map.shape
