@@ -1,0 +1,32 @@
+name: Run codes and tests.
+
+on:
+  push:
+    branches: [ "dev" , "main" , "release"]
+  pull_request:
+    branches: [ "dev"  , "main" , "release"]
+
+jobs:
+  python_job:
+    name: Install and run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # - name: Install prerequisites (apt)
+      #   run: |
+      #     sudo apt install 
+
+      - name: Install libraries
+        run: |
+          python3 -m pip install -U pygame --user
+          pip install rtree
+          pip install -U scikit-learn
+          pip install pyglet --user
+
+      - name: Run main.py
+        run: |
+          cd python-scripts/
+          python3 main.py
