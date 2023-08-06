@@ -25,6 +25,7 @@ jobs:
           pip install rtree
           pip install -U scikit-learn
           pip install pyglet --user
+          pip install opencv-python
 
       - name: Run main.py
         run: |
