@@ -9,17 +9,13 @@ class RRTPlanner(ABC):
                  x_goal,
                  goal_radius,
                  steer_delta,
-                 map_name,
                  scene_map,
-                 max_num_nodes,
-                 font_size):
+                 max_num_nodes):
         self.x_init_ = x_init
         self.x_goal_ = x_goal
         self.goal_radius_ = goal_radius
         self.steer_delta_ = steer_delta
         self.max_num_nodes_ = max_num_nodes
-        self.font_size_ = font_size
-        self.map_name_ = map_name
         self.scene_map_ = scene_map
 
         self.map_height_, self.map_width_ = self.scene_map_.shape
@@ -200,10 +196,6 @@ class RRTPlanner(ABC):
     def path(self):
         """ Get path from goal node to init node using the map node_to_parent.
 
-        Args:
-            goal_node (tuple): the goal node in the map.
-            node_to_parent (dict): the map from each node to its parent.
-
         Returns:
             list: list of tuples that associate the node and its parent node.
         """
@@ -296,7 +288,7 @@ class RRTPlanner(ABC):
         else:
             return False
         
-    def insert_node_to_tree(self, node, node_id):
+    def insert_node_to_tree(self, node, node_id=0):
         """ Insert node to rrt_tree node tree.
 
         Args:

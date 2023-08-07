@@ -6,18 +6,14 @@ class RRT(RRTPlanner):
                  x_goal, 
                  goal_radius, 
                  steer_delta, 
-                 map_name, 
                  scene_map, 
-                 max_num_nodes, 
-                 font_size):
+                 max_num_nodes):
         super().__init__(x_init, 
                          x_goal, 
                          goal_radius, 
                          steer_delta, 
-                         map_name, 
                          scene_map, 
-                         max_num_nodes, 
-                         font_size)
+                         max_num_nodes)
         
     def plan_found(self):
         """ Returns if a plan could be found, the nearest node to the newest node, and the new node.
@@ -38,7 +34,7 @@ class RRT(RRTPlanner):
             ## x_rand to obtain a new node for the tree
             x_new = self.steer(x_nearest, x_rand, self.steer_delta_)
             
-            ## Check if node is inside in collision
+            ## Check if node is in collision
             if self.collision(x_new):
                 # Node in collision
                 # print("collision")
