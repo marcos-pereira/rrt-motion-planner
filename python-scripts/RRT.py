@@ -1,11 +1,31 @@
 from RRTPlanner import RRTPlaner
 
 class RRT(RRTPlaner):
+    def __init__(self, 
+                 x_init, 
+                 x_goal, 
+                 goal_radius, 
+                 steer_delta, 
+                 map_name, 
+                 scene_map, 
+                 max_num_nodes, 
+                 font_size):
+        super().__init__(x_init, 
+                         x_goal, 
+                         goal_radius, 
+                         steer_delta, 
+                         map_name, 
+                         scene_map, 
+                         max_num_nodes, 
+                         font_size)
+        
     def plan_found(self):
-        """ Returns if a plan could be found.
+        """ Returns if a plan could be found, the nearest node to the newest node, and the new node.
 
         Returns:
             bool: True if a plan is found, false otherwise.
+            tuple: the nearest node to the new node added.
+            tuple: the new node found.
         """
         
         while True:
@@ -51,7 +71,7 @@ class RRT(RRTPlaner):
         
         path_found = self.path_to_goal_found(x_new, self.x_goal_, self.goal_radius_)
         
-        return path_found
+        return path_found, x_nearest, x_new
     
     def run(self):
         """ Run the planner on the loaded map with no visualization.
@@ -68,3 +88,7 @@ class RRT(RRTPlaner):
                 print("Path to goal found!")
                 break
     
+    def run_step(self):
+        path_found, x_nearest, x_new = self.plan_found()
+        
+        return path_found, x_nearest, x_new
