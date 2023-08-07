@@ -25,7 +25,6 @@ def main():
                     steer_delta,
                     map_name,
                     scene_map,
-                    search_window,
                     num_nodes,
                     font_size)
     
