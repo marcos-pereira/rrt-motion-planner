@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import random
-from Node import Node
 from rtree import index
-from sklearn.neighbors import NearestNeighbors
 
 class RRTPlaner(ABC):
     def __init__(self,
@@ -13,14 +11,12 @@ class RRTPlaner(ABC):
                  steer_delta,
                  map_name,
                  scene_map,
-                 search_window,
                  max_num_nodes,
                  font_size):
         self.x_init_ = x_init
         self.x_goal_ = x_goal
         self.goal_radius_ = goal_radius
         self.steer_delta_ = steer_delta
-        self.search_window_ = search_window
         self.max_num_nodes_ = max_num_nodes
         self.font_size_ = font_size
         self.map_name_ = map_name
@@ -77,6 +73,10 @@ class RRTPlaner(ABC):
     def run(self):
         pass
     
+    @abstractmethod
+    def run_step(self):
+        pass
+    
     def run_test(self):
         """ Run the planner on the loaded map with no visualization.
         """
@@ -109,7 +109,12 @@ class RRTPlaner(ABC):
         
         ## Check if goal radius was reached
         if self.nodes_distance(x_new, x_goal) < goal_radius:
-            print("Goal node radius reached!")            
+            print("Goal node radius reached!")     
+            
+            self.x_new_at_goal_ = x_new   
+            
+            self.path_.append(x_new)
+                
             path_found = True
         
         return path_found
@@ -186,11 +191,13 @@ class RRTPlaner(ABC):
             diffnodes = diffnodes/self.nodes_distance(node1, node2)
             node = node1 + delta*diffnodes
 
-        node = (node[0], node[1])
+        # Convert to int, otherwise the maps will not work with double precision
+        # TODO: use some better mapping like a hash function to avoid this problem
+        node = tuple(int(element) for element in node)
 
         return  node
     
-    def path(self, goal_node, node_to_parent):
+    def path(self):
         """ Get path from goal node to init node using the map node_to_parent.
 
         Args:
@@ -200,25 +207,24 @@ class RRTPlaner(ABC):
         Returns:
             list: list of tuples that associate the node and its parent node.
         """
-        path = list()
 
         ## Current node starts as the last node of the trajectory
-        current_node = goal_node
+        current_node = self.x_new_at_goal_
 
         while True:
-            ## Add tuple of current node to its parent node to the path
-            path.append((current_node, node_to_parent[current_node]))
+            ## Add tuple of current node to the path
+            self.path_.append(current_node)
 
             ## Current node become its parent, we are searching for a path
             ## backwards in the tree
-            current_node = node_to_parent[current_node]
+            current_node = self.node_to_parent_[current_node]
 
             ## If x_init is reached
             if current_node[0] == self.x_init_[0] and \
                 current_node[1] == self.x_init_[1]:
                 break
 
-        return path
+        return self.path_
     
     def nearest_node(self, current_node, rrt_graph):
         """ Get nearest node to current node in the rrt_graph.
