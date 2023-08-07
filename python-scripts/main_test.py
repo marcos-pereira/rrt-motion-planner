@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 from rtree import index
-from RRTPlannerMapPyglet import RRTPlanner
 from RRTStarPlannerMapPyglet import RRTStarPlanner
 from RRT import RRT
+from RRTStar import RRTStar
 from Map import load_map
 
 def main():
@@ -23,27 +23,36 @@ def main():
                     x_goal,
                     goal_radius,
                     steer_delta,
-                    map_name,
                     scene_map,
-                    num_nodes,
-                    font_size)
+                    num_nodes)
     
     rrt_planner.run()
     
     ## Call RRTStar
-    rows, cols = scene_map.shape
-    rrt_planner = RRTStarPlanner(x_init,
-                                 x_goal,
-                                 goal_radius,
-                                 steer_delta,
-                                 map_name,
-                                 scene_map,
-                                 search_window,
-                                 cols,
-                                 rows,
-                                 num_nodes,
-                                 font_size)
+    # rows, cols = scene_map.shape
+    # rrt_planner = RRTStarPlanner(x_init,
+    #                              x_goal,
+    #                              goal_radius,
+    #                              steer_delta,
+    #                              map_name,
+    #                              scene_map,
+    #                              search_window,
+    #                              cols,
+    #                              rows,
+    #                              num_nodes,
+    #                              font_size)
 
+    # rrt_planner.run()
+    
+    gamma_rrt = 10
+    rrt_planner = RRTStar(x_init,
+                    x_goal,
+                    goal_radius,
+                    steer_delta,
+                    gamma_rrt,
+                    scene_map,
+                    num_nodes)
+    
     rrt_planner.run()
 
 
