@@ -3,7 +3,7 @@ import numpy as np
 import random
 from rtree import index
 
-class RRTPlaner(ABC):
+class RRTPlanner(ABC):
     def __init__(self,
                  x_init,
                  x_goal,

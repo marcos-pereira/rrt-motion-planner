@@ -1,6 +1,6 @@
-from RRTPlanner import RRTPlaner
+from RRTPlanner import RRTPlanner
 
-class RRT(RRTPlaner):
+class RRT(RRTPlanner):
     def __init__(self, 
                  x_init, 
                  x_goal, 
