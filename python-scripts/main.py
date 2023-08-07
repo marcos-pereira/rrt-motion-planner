@@ -24,10 +24,8 @@ def main():
                     x_goal,
                     goal_radius,
                     steer_delta,
-                    map_name,
                     scene_map,
-                    num_nodes,
-                    font_size)
+                    num_nodes
     
     map_height, map_width = scene_map.shape
     plan_drawer = PlanDrawer(map_name, map_width, map_height, font_size)
