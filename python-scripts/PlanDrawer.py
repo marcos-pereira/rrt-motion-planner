@@ -83,18 +83,41 @@ class PlanDrawer(pyglet.window.Window):
             bool: True if plan still not found.
         """
         
+        self.clear()
+        
+        # Clear last tree
+        self.lines_ = set()
+        
         plan_found, x_nearest, x_new = planner.run_step()
         
-        self.lines_.add(Line(x_nearest[0], 
-                            self.map_height_-x_nearest[1], 
-                            x_new[0], 
-                            self.map_height_-x_new[1], 
+        # self.lines_.add(Line(x_nearest[0], 
+        #                     self.map_height_-x_nearest[1], 
+        #                     x_new[0], 
+        #                     self.map_height_-x_new[1], 
+        #                     self.batch_, 
+        #                     self.foreground_))
+        
+        # self.lines_[(x_nearest, x_new)] = Line(
+        #                     edge[0][0], 
+        #                     self.map_height_-edge[0][1], 
+        #                     edge[1][0], 
+        #                     self.map_height_-edge[1][1], 
+        #                     self.batch_, 
+        #                     self.foreground_)
+        
+        plan_graph = planner.get_graph()
+        for edge in plan_graph[1]:
+            self.lines_.add(Line(edge[0][0], 
+                            self.map_height_-edge[0][1], 
+                            edge[1][0], 
+                            self.map_height_-edge[1][1], 
                             self.batch_, 
                             self.foreground_))
+
         
         if plan_found:
-            print("Plan found, stop drawing!")
             path = planner.path()
+            print("plan found!")
             for node in path:
                 self.path_line_.add(Path(node[0],
                                         self.map_height_-node[1],
@@ -138,6 +161,26 @@ class PlanDrawer(pyglet.window.Window):
             if self.drawing_ == 1:        
                 if draw:
                     draw = self.draw_plan(planner)
+                
+            if self.stop_drawing_ == 1:
+                return
+
+            event = self.dispatch_events()
+            
+        return
+    
+    def run_forever(self, planner):
+        """ Run the planner and draw the planning after the key 's' is pressed.
+        Press escape to stop.
+
+        Args:
+            planner (RRTPlanner): The RRT planner.
+        """
+        draw = True
+        
+        while True:
+            if self.drawing_ == 1:        
+                self.draw_plan(planner)
                 
             if self.stop_drawing_ == 1:
                 return
