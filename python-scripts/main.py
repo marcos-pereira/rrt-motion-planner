@@ -11,7 +11,7 @@ def main():
     x_init = (30, 30)
     x_goal = (30, 460)
     goal_radius = 10
-    steer_delta = 20
+    steer_delta = 0.05
     near_radius = 30
     search_window = 800 # 400, 800, 1024
     frames_steps = 1
@@ -49,11 +49,15 @@ def main():
     # rrt_planner.run()
     
     gamma_rrt = 1000
+    eta_rrt = 30
+    near_radius = 50
     rrt_planner = RRTStar(x_init,
                     x_goal,
                     goal_radius,
                     steer_delta,
+                    eta_rrt,
                     gamma_rrt,
+                    near_radius,
                     scene_map,
                     num_nodes)
     
