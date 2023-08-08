@@ -108,9 +108,7 @@ class RRTPlanner(ABC):
             print("Goal node radius reached!")     
             
             self.x_new_at_goal_ = x_new   
-            
-            self.path_.append(x_new)
-                
+                            
             path_found = True
         
         return path_found
@@ -202,10 +200,12 @@ class RRTPlanner(ABC):
 
         ## Current node starts as the last node of the trajectory
         current_node = self.x_new_at_goal_
+        
+        path = list()
 
         while True:
             ## Add tuple of current node to the path
-            self.path_.append(current_node)
+            path.append(current_node)
 
             ## Current node become its parent, we are searching for a path
             ## backwards in the tree
@@ -216,7 +216,7 @@ class RRTPlanner(ABC):
                 current_node[1] == self.x_init_[1]:
                 break
 
-        return self.path_
+        return path
     
     def nearest_node(self, current_node, rrt_graph):
         """ Get nearest node to current node in the rrt_graph.
@@ -313,3 +313,9 @@ class RRTPlanner(ABC):
         
         # The second element of rrt_graph is the edge list
         self.rrt_graph_[1].add((node1, node2))
+        
+    def get_graph(self):
+        """Return the RRT graph.
+        """
+        
+        return self.rrt_graph_
