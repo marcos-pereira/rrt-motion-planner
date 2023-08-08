@@ -44,7 +44,7 @@ def main():
 
     # rrt_planner.run()
     
-    gamma_rrt = 10
+    gamma_rrt = 10000
     rrt_planner = RRTStar(x_init,
                     x_goal,
                     goal_radius,
