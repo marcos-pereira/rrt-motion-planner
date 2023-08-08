@@ -30,6 +30,9 @@ class PlanDrawer(pyglet.window.Window):
         
         ## Store lines
         self.lines_ = set()
+        
+        ## Store lines 
+        self.lines_rrtstar_ = dict()
 
         ## Store path to draw
         self.path_line_ = set()
@@ -89,21 +92,6 @@ class PlanDrawer(pyglet.window.Window):
         self.lines_ = set()
         
         plan_found, x_nearest, x_new = planner.run_step()
-        
-        # self.lines_.add(Line(x_nearest[0], 
-        #                     self.map_height_-x_nearest[1], 
-        #                     x_new[0], 
-        #                     self.map_height_-x_new[1], 
-        #                     self.batch_, 
-        #                     self.foreground_))
-        
-        # self.lines_[(x_nearest, x_new)] = Line(
-        #                     edge[0][0], 
-        #                     self.map_height_-edge[0][1], 
-        #                     edge[1][0], 
-        #                     self.map_height_-edge[1][1], 
-        #                     self.batch_, 
-        #                     self.foreground_)
         
         plan_graph = planner.get_graph()
         for edge in plan_graph[1]:
@@ -180,7 +168,7 @@ class PlanDrawer(pyglet.window.Window):
         
         while True:
             if self.drawing_ == 1:        
-                self.draw_plan(planner)
+                self.draw_plan_rrtstar(planner)
                 
             if self.stop_drawing_ == 1:
                 return
@@ -189,4 +177,80 @@ class PlanDrawer(pyglet.window.Window):
             
         return
 
+    def draw_plan_rrtstar(self, planner):
+        """ Returns True if plan still not found.
+
+        Args:
+            planner (RRTPlanner): The RRT planner.
+
+        Returns:
+            bool: True if plan still not found.
+        """
+        
+        self.clear()
+                
+        plan_found, x_nearest, x_new = planner.run_step()
+        
+        self.lines_rrtstar_[(planner.x_min_, x_new)] = \
+            Line(planner.x_min_[0], 
+                self.map_height_-planner.x_min_[1], 
+                x_new[0], 
+                self.map_height_-x_new[1], 
+                self.batch_, 
+                self.foreground_)
+            
+        for edge in planner.rewired_edges_:
+            self.lines_rrtstar_[edge] = \
+            Line(edge[0][0], 
+                self.map_height_-edge[0][1], 
+                edge[1][0], 
+                self.map_height_-edge[1][1], 
+                self.batch_, 
+                self.foreground_)
+        
+        for edge in planner.remove_this_edges_:
+            self.lines_rrtstar_.pop(edge)
+        
+        plan_graph = planner.get_graph()
+        for edge in plan_graph[1]:
+            self.lines_.add(Line(edge[0][0], 
+                            self.map_height_-edge[0][1], 
+                            edge[1][0], 
+                            self.map_height_-edge[1][1], 
+                            self.batch_, 
+                            self.foreground_))
+
+        
+        if plan_found:
+            path = planner.path()
+            print("plan found!")
+            for node in path:
+                self.path_line_.add(Path(node[0],
+                                        self.map_height_-node[1],
+                                        planner.node_to_parent_[node][0],
+                                        self.map_height_-planner.node_to_parent_[node][1], 
+                                        batch=self.batch_, 
+                                        group=self.path_layer_))
+    
+        ## Draw x_init and x_goal
+        draw_x_init = shapes.Circle(planner.x_init_[0], 
+                                    self.map_height_-planner.x_init_[1], 
+                                    radius=10, 
+                                    color=(255, 207, 88), 
+                                    batch=self.batch_, 
+                                    group=self.foreground_)
+        draw_x_goal = shapes.Circle(planner.x_goal_[0], 
+                                    self.map_height_-planner.x_goal_[1], 
+                                    radius=planner.goal_radius_, 
+                                    color=(92, 214, 118), 
+                                    batch=self.batch_, 
+                                    group=self.foreground_)
+        
+        self.batch_.draw()
+        
+        # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
+        # Facilitates the dispatch of events
+        self.flip()
+        
+        return not plan_found
         
