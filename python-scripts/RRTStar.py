@@ -9,7 +9,9 @@ class RRTStar(RRTPlanner):
                  x_goal, 
                  goal_radius, 
                  steer_delta, 
+                 nearest_neighbor_eta,
                  gamma_rrt,
+                 nearest_neighbor_radius,
                  scene_map, 
                  max_num_nodes):
         """ Return RRTStar planner.
@@ -31,6 +33,8 @@ class RRTStar(RRTPlanner):
                          max_num_nodes)
         
         self.gamma_rrt_ = gamma_rrt
+        self.nearest_neighbor_eta_ = nearest_neighbor_eta
+        self.nearest_neighbor_radius_ = nearest_neighbor_radius
         
         # Initial cost to goal
         self.cost_to_goal_ = np.inf
@@ -40,6 +44,15 @@ class RRTStar(RRTPlanner):
 
         ## Store last point in goal
         self.last_goal_found_ = tuple()
+        
+        # Remove this edges
+        self.remove_this_edges_ = list()
+        
+        # Rewire this edges
+        self.rewired_edges_ = list()
+        
+        # Node with minimum cost in tree to connect new node to
+        self.x_min_ = tuple()
         
     def plan_found(self):
         """ Returns if a plan could be found, the nearest node to the newest node, and the new node.
@@ -58,10 +71,11 @@ class RRTStar(RRTPlanner):
             
             # Steer from nearest node in tree towards the x_rand 
             # to obtain a new node for the tree
-            x_new = self.steer(x_nearest, x_rand, self.steer_delta_)
+            # x_new = self.steer(x_nearest, x_rand, self.steer_delta_)
+            x_new = self.linear_interpolation(x_nearest, x_rand, self.steer_delta_)
             
-            # Check if node is in collision
-            if self.collision(x_new):
+            if not x_new:
+                # Cannot connect
                 continue
             else:
                 node_already_tree = x_new in set(self.nodes_list_)
@@ -90,6 +104,7 @@ class RRTStar(RRTPlanner):
         
         # Point with minimum cost between x_new and x_nearest
         x_min, cost_min = self.get_min_cost_node(x_new, x_nearest, nearest_neighbors)
+        self.x_min_ = x_min
         
         # Add edge between x_min and x_new
         self.add_edge(x_min, x_new)
@@ -138,10 +153,11 @@ class RRTStar(RRTPlanner):
     
     def get_nearest_neighbors(self, node):
         dim_configuration_space = len(node)
-        eta = self.steer_delta_
+        eta = self.nearest_neighbor_eta_
         gamma_rrtstar = self.gamma_rrt_
         nearest_neighbors_radius = min(\
             (gamma_rrtstar * (np.log(self.node_count_) / self.node_count_ ) ** (1 / dim_configuration_space)), eta)
+        # nearest_neighbors_radius = self.nearest_neighbor_radius_
         
         nearest_neighbors_estimator = NearestNeighbors(radius=nearest_neighbors_radius,
                                              algorithm='kd_tree')
@@ -195,6 +211,7 @@ class RRTStar(RRTPlanner):
             x_new (tuple): the new node to in tree.
             nearest_neighbors_set (set of tuples): the set of nearest neighbors to new node.
         """
+        self.remove_this_edges_ = list()
         for node in nearest_neighbors_set:
             x_parent = None
             if self.nodes_closer(x_new, node):
@@ -204,8 +221,12 @@ class RRTStar(RRTPlanner):
             ## Delete edge between node and its parent
             ## and rewire it with x_new since the cost is smaller
             if x_parent is not None:
+                # Remove edge
                 self.rrt_graph_[1].remove((x_parent, node))
+                self.remove_this_edges_.append((x_parent, node))
+                
                 self.add_edge(x_new, node)
+                self.rewired_edges_.append((x_new, node))
                 self.node_to_parent_[node] = x_new
                 self.node_to_cost_[node] = self.cost_to_node(node)
                 self.node_to_cost_[x_new] = self.cost_to_node(x_new)
