@@ -190,6 +190,23 @@ class RRTPlanner(ABC):
         node = tuple(int(element) for element in node)
 
         return  node
+
+    def linear_interpolation(self, node1, node2, delta):
+        
+        node1 = np.array([node1[0], node1[1]])
+        node2 = np.array([node2[0], node2[1]])
+
+        for interpolation_factor in np.arange(0, 1, delta):
+            node = node1*interpolation_factor + (1-interpolation_factor)*node2
+            node = tuple(element for element in node)    
+            if self.collision(node):
+                return False        
+        
+        # Convert to int, otherwise the maps will not work with double precision
+        # TODO: use some better mapping like a hash function to avoid this problem
+        node = tuple(int(element) for element in node)
+        
+        return node
     
     def path(self):
         """ Get path from goal node to init node using the map node_to_parent.
