@@ -29,8 +29,8 @@ def main():
                     num_nodes)
     
     map_height, map_width = scene_map.shape
-    # plan_drawer = PlanDrawer(map_name, map_width, map_height, font_size)
-    # plan_drawer.run(rrt_planner)
+    plan_drawer_rrt = PlanDrawer(map_name, map_width, map_height, font_size)
+    plan_drawer_rrt.run(rrt_planner)
     
     ## Call RRT
     # rows, cols = scene_map.shape
@@ -51,7 +51,7 @@ def main():
     gamma_rrt = 1000
     eta_rrt = 20
     near_radius = 20
-    rrt_planner = RRTStar(x_init,
+    rrtstar_planner = RRTStar(x_init,
                     x_goal,
                     goal_radius,
                     steer_delta,
@@ -61,8 +61,8 @@ def main():
                     scene_map,
                     num_nodes)
     
-    plan_drawer = PlanDrawer(map_name, map_width, map_height, font_size)
-    plan_drawer.run_forever(rrt_planner)
+    plan_drawer_rrtstar = PlanDrawer(map_name, map_width, map_height, font_size)
+    plan_drawer_rrtstar.run_forever(rrtstar_planner)
     
     ## Call RRTStar
     # rows, cols = scene_map.shape
