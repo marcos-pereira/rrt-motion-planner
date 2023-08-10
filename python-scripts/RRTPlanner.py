@@ -11,6 +11,21 @@ class RRTPlanner(ABC):
                  steer_delta,
                  scene_map,
                  max_num_nodes):
+        """ Return RRTPlanner object. These planners were implement or are inspired by the
+        algorithms from the paper:
+        S. Karaman and E. Frazzoli, “Sampling-based algorithms for optimal motion planning,” 
+        The International Journal of Robotics Research, vol. 30, no. 7, pp. 846–894, 2011, doi: 10.1177/0278364911406761.
+
+        Args:
+            x_init (tuple): the initial node configuration.
+            x_goal (tuple): the goal node configuration.
+            goal_radius (double): the radius of a ball around the goal to be considered
+            at the goal.
+            steer_delta (int): the step size in pixels when going from a node in the tree
+            towards a new sampled node.
+            scene_map (_type_): the scene map.
+            max_num_nodes (int): the maximum number of nodes to run the planner.
+        """
         self.x_init_ = x_init
         self.x_goal_ = x_goal
         self.goal_radius_ = goal_radius
