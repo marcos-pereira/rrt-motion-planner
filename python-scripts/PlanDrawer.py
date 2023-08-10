@@ -29,7 +29,7 @@ class PlanDrawer(pyglet.window.Window):
         self.path_layer_ = pyglet.graphics.Group(order=3)
         
         ## Store lines
-        self.lines_ = set()
+        self.lines_ = list()
         
         ## Store lines 
         self.lines_rrtstar_ = dict()
@@ -99,12 +99,12 @@ class PlanDrawer(pyglet.window.Window):
         
         plan_found, x_nearest, x_new = planner.run_step()
         
-        self.lines_.add(Line(x_nearest[0], 
-                        self.map_height_-x_nearest[1], 
-                        x_new[0], 
-                        self.map_height_-x_new[1], 
-                        self.batch_, 
-                        self.foreground_))
+        self.lines_.append(Line(x_nearest[0], 
+                            self.map_height_-x_nearest[1], 
+                            x_new[0], 
+                            self.map_height_-x_new[1], 
+                            self.batch_, 
+                            self.foreground_))
 
         
         if plan_found:
@@ -127,7 +127,7 @@ class PlanDrawer(pyglet.window.Window):
         ## Draw x_init and x_goal
         draw_x_init = shapes.Circle(planner.x_init_[0], 
                                     self.map_height_-planner.x_init_[1], 
-                                    radius=10, 
+                                    radius=planner.goal_radius_, 
                                     color=(255, 207, 88), 
                                     batch=self.batch_, 
                                     group=self.foreground_)
