@@ -82,10 +82,10 @@ class RRTPlanner(ABC):
             
             path_found = self.path_to_goal_found()
             
-            if self.max_number_nodes():
+            if self.max_number_nodes() == True:
                 break
             
-            if path_found:
+            if path_found == True:
                 print("Path to goal found!")
                 break
     
@@ -106,9 +106,7 @@ class RRTPlanner(ABC):
         ## Check if goal radius was reached
         if self.nodes_distance(x_new, x_goal) < goal_radius:
             print("Goal node radius reached!")     
-            
-            self.x_new_at_goal_ = x_new   
-                            
+                                        
             path_found = True
         
         return path_found
@@ -199,7 +197,7 @@ class RRTPlanner(ABC):
         for interpolation_factor in np.arange(0, 1, delta):
             node = node1*interpolation_factor + (1-interpolation_factor)*node2
             node = tuple(element for element in node)    
-            if self.collision(node):
+            if self.collision(node) == True:
                 return False        
         
         # Convert to int, otherwise the maps will not work with double precision
@@ -208,15 +206,17 @@ class RRTPlanner(ABC):
         
         return node
     
-    def path(self):
-        """ Get path from goal node to init node using the map node_to_parent.
+    def path(self, node):
+        """ Get path from node to initial node using the map node_to_parent. 
+        Return also the path cost.
 
         Returns:
             list: list of tuples that associate the node and its parent node.
+            doube: path cost.
         """
 
         ## Current node starts as the last node of the trajectory
-        current_node = self.x_new_at_goal_
+        current_node = node
         
         path = list()
 
@@ -232,8 +232,10 @@ class RRTPlanner(ABC):
             if current_node[0] == self.x_init_[0] and \
                 current_node[1] == self.x_init_[1]:
                 break
+        
+        path_cost = self.cost_to_node(node)
 
-        return path
+        return path, path_cost
     
     def nearest_node(self, current_node, rrt_graph):
         """ Get nearest node to current node in the rrt_graph.
