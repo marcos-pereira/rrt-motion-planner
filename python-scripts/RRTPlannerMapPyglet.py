@@ -1,6 +1,15 @@
+#    This code is distributed WITHOUT ANY WARRANTY, without the implied
+#   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#   See the GNU Lesser General Public License for more details.
+  
+#   The license is distributed along with this repository or you can check
+#   <http://www.gnu.org/licenses/> for more details.
+
+# Contributors: 
+# marcos-pereira (https://github.com/marcos-pereira)
+
 import numpy as np
 import random
-import matplotlib.pyplot as plt
 import pygame
 pygame.init()
 from pyglet import *
@@ -142,56 +151,105 @@ class RRTPlanner(pyglet.window.Window):
             event = self.dispatch_events()
 
         return
-
+    
+    def run_test(self):
+        """ Run the planner on the loaded map with no visualization.
+        """
+        path_found = False
+        while True:
+            self.run_planner_step()
+            
+            path_found = self.path_to_goal_found()
+            
+            if self.max_number_nodes():
+                break
+            
+            if path_found:
+                print("Path to goal found!")
+                break
+            
     def plan_iteration(self):
         self.clear()
 
         if self.path_found_ == False:
-            ## Sample point in space
-            x_rand = self.sample_space(self.map_width_, self.map_height_)
+            # Get new map node
+            x_nearest = self.run_planner_step()
 
-            ## Check if point is inside any obstacle
-            if x_rand in self.obstacles_coordinates_:
+            if x_nearest == False:
                 return False
-
-            ## Get nearest node to x_rand
-            x_nearest = self.nearest(x_rand, self.x_init_, self.rrt_graph_)
-
-            ## Steer from nearest node in tree (i.e. parent_node) towards the
-            ## x_rand to obtain a new node for the tree
-            self.x_new_ = self.steer(x_nearest, x_rand, self.steer_delta_)
-            ## Check if x_new is already in tree
-            if self.x_new_ in set(self.nodes_list_):
-                return False
-
-            ## x_nearest will be the parent node of x_new
-            self.node_to_parent_[self.x_new_] = x_nearest
-
-            ## Cost to x_new
-            self.node_to_cost_[self.x_new_] = self.node_to_cost_[self.node_to_parent_[self.x_new_]] + \
-                                        self.nodes_distance(self.node_to_parent_[self.x_new_], self.x_new_)
-
-            ## Check if point is inside any obstacle
-            if (int(self.x_new_[0]), int(self.x_new_[1])) in self.obstacles_coordinates_:
-                return False
-
-            ## Add x_new to graph
-            # rrt_graph[0].add(x_new)
-            self.rrt_graph_[0].insert(0, self.x_new_ + self.x_new_, self.x_new_)
-            self.nodes_list_.append(self.x_new_)
-
-            ## Increment node count
-            self.node_count_ += 1
-
-            ## Add edge between x_min and x_new
-            self.rrt_graph_[1].add((x_nearest, self.x_new_))
-
-            self.lines_.add(Line(x_nearest[0], self.map_height_-x_nearest[1], self.x_new_[0], self.map_height_-self.x_new_[1], self.batch_, self.foreground_))
+            else:
+                self.lines_.add(Line(x_nearest[0], self.map_height_-x_nearest[1], self.x_new_[0], self.map_height_-self.x_new_[1], self.batch_, self.foreground_))
 
         ## Draw x_init and x_goal
         draw_x_init = shapes.Circle(self.x_init_[0], self.map_height_-self.x_init_[1], radius=10, color=(255, 207, 88), batch=self.batch_, group=self.foreground_)
         draw_x_goal = shapes.Circle(self.x_goal_[0], self.map_height_-self.x_goal_[1], radius=self.goal_radius_, color=(92, 214, 118), batch=self.batch_, group=self.foreground_)
 
+        path_found = self.path_to_goal_found()
+
+        self.batch_.draw()
+
+        self.flip()
+
+        if self.max_number_nodes():
+            return True
+
+        return path_found
+    
+    def run_planner_step(self):
+        """ Run one step of the planner. 
+
+        Returns:
+            tuple: Nearest node. Use this node to draw on the map if needed to draw visualization.
+        """
+        ## Sample point in space
+        x_rand = self.sample_space(self.map_width_, self.map_height_)
+
+        ## Check if point is inside any obstacle
+        if x_rand in self.obstacles_coordinates_:
+            return False
+
+        ## Get nearest node to x_rand
+        x_nearest = self.nearest(x_rand, self.x_init_, self.rrt_graph_)
+
+        ## Steer from nearest node in tree (i.e. parent_node) towards the
+        ## x_rand to obtain a new node for the tree
+        self.x_new_ = self.steer(x_nearest, x_rand, self.steer_delta_)
+        ## Check if x_new is already in tree
+        if self.x_new_ in set(self.nodes_list_):
+            return False
+
+        ## x_nearest will be the parent node of x_new
+        self.node_to_parent_[self.x_new_] = x_nearest
+
+        ## Cost to x_new
+        self.node_to_cost_[self.x_new_] = self.node_to_cost_[self.node_to_parent_[self.x_new_]] + \
+                                    self.nodes_distance(self.node_to_parent_[self.x_new_], self.x_new_)
+
+        ## Check if point is inside any obstacle
+        if (int(self.x_new_[0]), int(self.x_new_[1])) in self.obstacles_coordinates_:
+            return False
+
+        ## Add x_new to graph
+        # rrt_graph[0].add(x_new)
+        self.rrt_graph_[0].insert(0, self.x_new_ + self.x_new_, self.x_new_)
+        self.nodes_list_.append(self.x_new_)
+
+        ## Increment node count
+        self.node_count_ += 1
+
+        ## Add edge between x_min and x_new
+        self.rrt_graph_[1].add((x_nearest, self.x_new_))
+        
+        return x_nearest
+    
+    def path_to_goal_found(self):
+        """Check if new node in tree is close enough to goal node.
+
+        Returns:
+            bool: True if new node is close enough to goal node.
+        """
+        path_found = False
+        
         ## Check if goal radius was reached
         if self.nodes_distance(self.x_new_, self.x_goal_) < self.goal_radius_:
             print("Goal node radius reached!")
@@ -206,18 +264,27 @@ class RRTPlanner(pyglet.window.Window):
             ## Goal was found, get path to goal
             path = self.path(goal_node, self.node_to_parent_)
 
-            self.path_found_ = True
+            path_found = True
+        
+        return path_found
+    
+    def max_number_nodes(self):
+        """ Check if maximum number of nodes was reached.
 
-        self.batch_.draw()
-
-        self.flip()
-
+        Returns:
+            bool: True if maximum number of nodes was reached.
+        """
+        
+        max_number_nodes_reached = False
+        
         if self.node_count_ == self.num_nodes_:
             print("Maximal number of nodes in tree reached!")
             print("Input anything and press enter to quit.")
-            return False
-
-        return self.path_found_
+            max_number_nodes_reached = True
+            
+            return max_number_nodes_reached
+        else:
+            return max_number_nodes_reached
 
     def plan(self):
         ## Return true if path found, false otherwise

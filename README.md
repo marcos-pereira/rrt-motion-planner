@@ -15,4 +15,4 @@ Next, run the main.py:
 python3 main.py
 ```
 
-Close the loaded map window. A black window will open. Press `s` to start planning.
+Close the loaded map window. A black window will open. Press `s` to start planning with the RRT. Press `esc` to stop planner and close window. Next, a new window will open an the RRT* will be executed after pressing `s` again.
