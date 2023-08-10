@@ -1,7 +1,9 @@
+import copy
+
+import numpy as np
 from RRTPlanner import RRTPlanner
 from sklearn.neighbors import NearestNeighbors
-import numpy as np
-import copy
+
 
 class RRTStar(RRTPlanner):
     def __init__(self,
@@ -39,11 +41,14 @@ class RRTStar(RRTPlanner):
         # Initial cost to goal
         self.cost_to_goal_ = np.inf
         
+        # Last cost to goal calculated
+        self.last_cost_to_goal_ = np.inf
+        
         ## Store last path found
         self.last_path_found_ = list()
 
-        ## Store last point in goal
-        self.last_goal_found_ = tuple()
+        ## Store last node in goal
+        self.last_goal_node_ = None
         
         # Remove this edges
         self.remove_this_edges_ = list()
@@ -54,8 +59,11 @@ class RRTStar(RRTPlanner):
         # Node with minimum cost in tree to connect new node to
         self.x_min_ = tuple()
         
+        # If at least one path to goal found
+        self.one_path_found_ = False
+        
     def plan_found(self):
-        """ Returns if a plan could be found, the nearest node to the newest node, and the new node.
+        """ Returns if a plan could be found, the nearest node to the reached node, and the reached node in goal radius.
 
         Returns:
             bool: True if a plan is found, false otherwise.
@@ -66,86 +74,109 @@ class RRTStar(RRTPlanner):
         while True:
             x_rand = self.configuration_in_free_space()
             
-            # Get nearest node to x_rand
+            ## Get nearest node to x_rand
             x_nearest = self.nearest_node(x_rand, self.rrt_graph_)
+
+            ## Steer from nearest node in tree (i.e. parent_node) towards the
+            ## x_rand to obtain a new node for the tree
+            x_new = self.steer(x_nearest, x_rand, self.steer_delta_)
             
-            # Steer from nearest node in tree towards the x_rand 
-            # to obtain a new node for the tree
-            # x_new = self.steer(x_nearest, x_rand, self.steer_delta_)
-            x_new = self.linear_interpolation(x_nearest, x_rand, self.steer_delta_)
-            
-            if not x_new:
-                # Cannot connect
+            ## Check if node is in collision
+            if self.collision(x_new) == True:
+                # Node in collision
+                # print("collision")
                 continue
             else:
-                node_already_tree = x_new in set(self.nodes_list_)
+                node_already_in_tree = x_new in set(self.nodes_list_)
                 
-                if node_already_tree:
-                    # Search for new node
+                if node_already_in_tree == True:
+                    # Search new node
+                    # print("node in tree")
                     continue
                 else:
+                    # print("valid node found")
                     # Valid node found
                     break
-            
-        ## x_nearest will be the parent node of x_new
-        self.node_to_parent_[x_new] = x_nearest
-
-        self.node_to_cost_[x_new] = self.cost_to_node(x_new)        
         
         # Get nearest neighbors to x_new 
         nearest_neighbors = self.get_nearest_neighbors(x_new)
         
         ## Add x_new to graph
-        self.insert_node_to_tree(x_new, 0)
+        self.insert_node_to_tree(x_new)
         self.nodes_list_.append(x_new)
+        
+        # Point with minimum cost between x_new and x_nearest
+        x_min, cost_min = self.get_min_cost_node(x_new, x_nearest, nearest_neighbors)  
+        self.x_min_ = x_min            
         
         ## Increment node count
         self.node_count_ += 1
         
-        # Point with minimum cost between x_new and x_nearest
-        x_min, cost_min = self.get_min_cost_node(x_new, x_nearest, nearest_neighbors)
-        self.x_min_ = x_min
-        
         # Add edge between x_min and x_new
         self.add_edge(x_min, x_new)
+        
+        # x_min will be the parent node of x_new
         self.node_to_parent_[x_new] = x_min
-        self.node_to_cost_[x_new] = cost_min
+        self.node_to_cost_[x_new] = self.node_to_cost_[x_min] + self.nodes_distance(x_new, x_min)
         
         # Rewire tree after adding new node
         self.rewire_tree(x_new, nearest_neighbors)
         
         path_found = self.path_to_goal_found(x_new, self.x_goal_, self.goal_radius_)
         
-        lower_cost_path_found = self.node_to_cost_[x_new] < self.cost_to_goal_
+        # if self.last_goal_node_ is not None:
+        #     cost_to_last_goal = self.node_to_cost_[self.last_goal_node_]
+            
+        #     if cost_to_last_goal < self.last_cost_to_goal_:
+        #         print(f"Lower cost: {cost_to_last_goal}")
+        #         x_reached = self.last_goal_node_
+        #         self.last_path_found_ = self.path(x_reached)
+        #         self.last_goal_node_ = x_reached            
+        #         self.last_cost_to_goal_ = self.node_to_cost_[x_reached]
+        #         path_found = True
         
-        if path_found and lower_cost_path_found:
+        lower_cost_path_found = \
+            self.node_to_cost_[x_new] < self.last_cost_to_goal_
+        
+        if path_found == True and lower_cost_path_found:
+            print("Goal node radius reached!")
+            print(f"Cost: {self.node_to_cost_[x_new]}")
+                        
             self.cost_to_goal_ = self.node_to_cost_[x_new]
-            print(f"Cost: {self.cost_to_goal_}")
+                        
+            self.last_path_found_ = self.path(x_new)
+            self.last_goal_node_ = x_new      
+            self.last_cost_to_goal_ = self.node_to_cost_[x_new]
+        
+        
+        # if path_found == True:
+        #     print("Path found.")
+                        
+        #     lower_cost_path_found = self.cost_to_node(x_new) < self.last_cost_to_goal_
             
-            ## At least one path was found
-            self.one_path_found_ = True
-
-            ## Goal was found, get path to goal
-            self.last_path_found_ = self.path()
-            self.last_goal_found_ = x_new
+        #     self.last_cost_to_goal_ = self.cost_to_node(x_new)
+        #     self.last_goal_found_ = x_new
             
+        #     ## At least one path was found
+        #     self.one_path_found_ = True
+                    
+        #     if lower_cost_path_found == True:
+        #         self.last_cost_to_goal_ = self.cost_to_node(x_new)
+        #         print("Lower cost found.")
+        #         print(f"Cost: {self.last_cost_to_goal_}")
+        
         return path_found, x_nearest, x_new
     
     def run(self):
         """ Run the planner on the loaded map with no visualization.
         """
-        
         while True:
-            path_found = self.plan_found()
-            
-            if self.max_number_nodes():
+            path_found, x_neaerst, x_new = self.plan_found()
+                        
+            if self.max_number_nodes() == True:
                 print(f"Maximum number of {self.max_num_nodes_} reached")
                 break
-            
-            if path_found:
-                print("Path to goal found!")
-                print(f"Cost to goal: {self.cost_to_goal_}")
-    
+                
     def run_step(self):
         path_found, x_nearest, x_new = self.plan_found()
         
@@ -170,7 +201,7 @@ class RRTStar(RRTPlanner):
         nearest_neighbors_set = self.get_neighbors_from_nodes_list(self.nodes_list_, neighbors_indexes_set)
         
         # TODO: check if necessary this copy
-        # nearest_neighbors_set = copy.deepcopy(nearest_neighbors_set)
+        nearest_neighbors_set = copy.deepcopy(nearest_neighbors_set)
         
         return nearest_neighbors_set
         
@@ -212,11 +243,12 @@ class RRTStar(RRTPlanner):
             nearest_neighbors_set (set of tuples): the set of nearest neighbors to new node.
         """
         self.remove_this_edges_ = list()
+        self.rewired_edges_ = list()
         for node in nearest_neighbors_set:
             x_parent = None
-            if self.nodes_closer(x_new, node):
-                # x_parent = copy.deepcopy(self.node_to_parent_[node])
-                x_parent = self.node_to_parent_[node]
+            if self.nodes_closer(x_new, node) == True:
+                x_parent = copy.deepcopy(self.node_to_parent_[node])
+                # x_parent = self.node_to_parent_[node]
                                 
             ## Delete edge between node and its parent
             ## and rewire it with x_new since the cost is smaller
@@ -228,8 +260,7 @@ class RRTStar(RRTPlanner):
                 self.add_edge(x_new, node)
                 self.rewired_edges_.append((x_new, node))
                 self.node_to_parent_[node] = x_new
-                self.node_to_cost_[node] = self.cost_to_node(node)
-                self.node_to_cost_[x_new] = self.cost_to_node(x_new)
+                self.node_to_cost_[node] = self.node_to_cost_[x_new] + self.nodes_distance(x_new, node)
 
     def nodes_closer(self, new_node, tree_node):
         """ Return if new_node appended to tree_node has lower cost than the cost from tree_node itself.
