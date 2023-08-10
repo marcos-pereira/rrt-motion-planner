@@ -95,30 +95,34 @@ class PlanDrawer(pyglet.window.Window):
         self.clear()
         
         # Clear last tree
-        self.lines_ = set()
+        # self.lines_ = set()
         
         plan_found, x_nearest, x_new = planner.run_step()
         
-        plan_graph = planner.get_graph()
-        for edge in plan_graph[1]:
-            self.lines_.add(Line(edge[0][0], 
-                            self.map_height_-edge[0][1], 
-                            edge[1][0], 
-                            self.map_height_-edge[1][1], 
-                            self.batch_, 
-                            self.foreground_))
+        self.lines_.add(Line(x_nearest[0], 
+                        self.map_height_-x_nearest[1], 
+                        x_new[0], 
+                        self.map_height_-x_new[1], 
+                        self.batch_, 
+                        self.foreground_))
 
         
         if plan_found:
-            path = planner.path()
-            print("plan found!")
-            for node in path:
-                self.path_line_.add(Path(node[0],
-                                        self.map_height_-node[1],
-                                        planner.node_to_parent_[node][0],
-                                        self.map_height_-planner.node_to_parent_[node][1], 
+            path, path_cost = planner.path(x_new)
+            for i in range(len(path)-1):
+                self.path_line_.add(Path(path[i][0],
+                                        self.map_height_-path[i][1],
+                                        path[i+1][0],
+                                        self.map_height_-path[i+1][1], 
                                         batch=self.batch_, 
                                         group=self.path_layer_))
+                
+            ## Store path cost text
+            self.path_cost_text_ = pyglet.text.Label(
+            'Path cost: ' + str(path_cost),
+            font_name='Arial',
+            font_size=self.font_size_, x=0, y=self.font_size_,
+            batch=self.batch_, group=self.path_layer_)
     
         ## Draw x_init and x_goal
         draw_x_init = shapes.Circle(planner.x_init_[0], 
@@ -233,6 +237,13 @@ class PlanDrawer(pyglet.window.Window):
             
             if path_cost < self.last_path_cost_:
                 self.path_ = path
+                
+                ## Store path cost text
+                self.path_cost_text_ = pyglet.text.Label(
+                'Path cost: ' + str(path_cost),
+                font_name='Arial',
+                font_size=self.font_size_, x=0, y=self.font_size_,
+                batch=self.batch_, group=self.path_layer_)
                     
             self.last_path_cost_ = path_cost
         
@@ -247,7 +258,7 @@ class PlanDrawer(pyglet.window.Window):
         ## Draw x_init and x_goal
         draw_x_init = shapes.Circle(planner.x_init_[0], 
                                     self.map_height_-planner.x_init_[1], 
-                                    radius=10, 
+                                    radius=planner.goal_radius_, 
                                     color=(255, 207, 88), 
                                     batch=self.batch_, 
                                     group=self.foreground_)
