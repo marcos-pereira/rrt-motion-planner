@@ -9,9 +9,9 @@ from PlanDrawer import PlanDrawer
 
 def main():
     x_init = (30, 30)
-    x_goal = (30, 460)
+    x_goal = (400, 300)
     goal_radius = 10
-    steer_delta = 0.05
+    steer_delta = 15
     near_radius = 30
     search_window = 800 # 400, 800, 1024
     frames_steps = 1
@@ -49,8 +49,8 @@ def main():
     # rrt_planner.run()
     
     gamma_rrt = 1000
-    eta_rrt = 30
-    near_radius = 50
+    eta_rrt = 20
+    near_radius = 20
     rrt_planner = RRTStar(x_init,
                     x_goal,
                     goal_radius,
