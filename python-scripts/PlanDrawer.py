@@ -37,6 +37,12 @@ class PlanDrawer(pyglet.window.Window):
         ## Store path to draw
         self.path_line_ = set()
         
+        ## Path
+        self.path_ = set()
+        
+        ## Last found path cost
+        self.last_path_cost_ = np.inf
+        
         ## Control window behavior
         self.drawing_ = 0
         self.stop_drawing_ = 0
@@ -188,16 +194,11 @@ class PlanDrawer(pyglet.window.Window):
         """
         
         self.clear()
-                
+                        
         plan_found, x_nearest, x_new = planner.run_step()
         
-        self.lines_rrtstar_[(planner.x_min_, x_new)] = \
-            Line(planner.x_min_[0], 
-                self.map_height_-planner.x_min_[1], 
-                x_new[0], 
-                self.map_height_-x_new[1], 
-                self.batch_, 
-                self.foreground_)
+        for edge in planner.remove_this_edges_:
+            self.lines_rrtstar_.pop(edge)
             
         for edge in planner.rewired_edges_:
             self.lines_rrtstar_[edge] = \
@@ -208,29 +209,40 @@ class PlanDrawer(pyglet.window.Window):
                 self.batch_, 
                 self.foreground_)
         
-        for edge in planner.remove_this_edges_:
-            self.lines_rrtstar_.pop(edge)
-        
-        plan_graph = planner.get_graph()
-        for edge in plan_graph[1]:
-            self.lines_.add(Line(edge[0][0], 
-                            self.map_height_-edge[0][1], 
-                            edge[1][0], 
-                            self.map_height_-edge[1][1], 
-                            self.batch_, 
-                            self.foreground_))
+        self.lines_rrtstar_[(planner.x_min_, x_new)] = \
+            Line(planner.x_min_[0], 
+                self.map_height_-planner.x_min_[1], 
+                x_new[0], 
+                self.map_height_-x_new[1], 
+                self.batch_, 
+                self.foreground_)
+            
+        # plan_graph = planner.get_graph()
+        # for edge in plan_graph[1]:
+        #     self.lines_.add(Line(edge[0][0], 
+        #                     self.map_height_-edge[0][1], 
+        #                     edge[1][0], 
+        #                     self.map_height_-edge[1][1], 
+        #                     self.batch_, 
+        #                     self.foreground_))
 
         
         if plan_found:
-            path = planner.path()
-            print("plan found!")
-            for node in path:
-                self.path_line_.add(Path(node[0],
-                                        self.map_height_-node[1],
-                                        planner.node_to_parent_[node][0],
-                                        self.map_height_-planner.node_to_parent_[node][1], 
-                                        batch=self.batch_, 
-                                        group=self.path_layer_))
+            self.path_line_ = set()
+            path, path_cost = planner.path(planner.last_goal_node_)
+            
+            if path_cost < self.last_path_cost_:
+                self.path_ = path
+                    
+            self.last_path_cost_ = path_cost
+        
+        for i in range(len(self.path_)-1):
+            self.path_line_.add(Path(self.path_[i][0],
+                                    self.map_height_-self.path_[i][1],
+                                    self.path_[i+1][0],
+                                    self.map_height_-self.path_[i+1][1], 
+                                    batch=self.batch_, 
+                                    group=self.path_layer_))
     
         ## Draw x_init and x_goal
         draw_x_init = shapes.Circle(planner.x_init_[0], 
