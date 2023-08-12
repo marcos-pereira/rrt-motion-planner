@@ -58,10 +58,10 @@ class PlanDrawer(pyglet.window.Window):
         self.stop_drawing_ = 0
 
         ## Load map
-        self.map_ = image.load(map_name)
+        self.map_ = image.load("no_background.png")
         self.map_sprite_ = pyglet.sprite.Sprite(self.map_, 0, 0,
                                                 batch=self.batch_,
-                                                group=self.image_layer_)
+                                                group=self.background_)
         
         self.map_height_ = height
         self.map_width_ = width
