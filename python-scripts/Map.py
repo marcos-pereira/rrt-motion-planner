@@ -20,33 +20,51 @@ def load_map(map_name, test=False):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Get binary threshold
-    retval, threshold = cv2.threshold(gray, 10, 255,
+    retval, obstacles_map = cv2.threshold(gray, 10, 255,
                                       cv2.THRESH_BINARY)
 
     # Morphological operations
     kernel = np.ones((3, 3), np.uint8)
-    threshold = cv2.dilate(threshold, kernel, iterations=1)
+    obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
     # threshold = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, kernel)
-    threshold = cv2.erode(threshold, kernel, iterations=1)
-    threshold = cv2.dilate(threshold, kernel, iterations=1)
-    threshold = cv2.erode(threshold, kernel, iterations=1)
-    threshold = cv2.dilate(threshold, kernel, iterations=1)
-    threshold = cv2.erode(threshold, kernel, iterations=1)
-    threshold = cv2.dilate(threshold, kernel, iterations=1)
-    threshold = cv2.erode(threshold, kernel, iterations=1)
+    obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
+    obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
+    obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
+    obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
+    obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
+    obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
+    obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
+        
+    # Find contours of the foreground objects
+    contours, _ = cv2.findContours(obstacles_map, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Create a mask to remove the background
+    mask = np.zeros_like(image)
+    
+    # Fill the detected foreground contours in the mask
+    cv2.drawContours(mask, contours, -1, 255, thickness=cv2.FILLED)
+    
+    # Apply the mask to the original image
+    result = cv2.bitwise_and(image, mask)
+    
+    # Save the result to the specified output path
+    map_no_background = "no_background.png"
+    cv2.imwrite(map_no_background, result)
 
     if not test:
-        cv2.imshow("drawing", threshold)
+        cv2.imshow("drawing", obstacles_map)
         cv2.waitKey(0)
 
+    obstacles_map = 255 - obstacles_map
+
     ## Get binary matrix from threshold image
-    rows, cols = threshold.shape
+    rows, cols = obstacles_map.shape
     drawing_matrix = np.empty([rows, cols])
     for row in range(rows):
         for col in range(cols):
-            if threshold[row, col] == 255:
+            if obstacles_map[row, col] == 255:
                 drawing_matrix[row, col] = 1
-            if threshold[row, col] == 0:
+            if obstacles_map[row, col] == 0:
                 drawing_matrix[row, col] = 0
 
     ## Get indices of coordinates with 1's in the drawing matrix
