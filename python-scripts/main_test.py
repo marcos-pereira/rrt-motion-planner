@@ -27,7 +27,7 @@ def main():
     frames_steps = 1
     num_nodes = 50000
     font_size = 25
-    map_name = 'smile1.png'
+    map_name = 'smile.png'
     
     scene_map = load_map(map_name, test=True)
     
