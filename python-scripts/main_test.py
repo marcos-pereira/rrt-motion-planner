@@ -17,20 +17,6 @@ from Map import load_map
 import sys
 
 def main():
-    # Check if the correct number of command-line arguments are provided
-    if len(sys.argv) < 2:
-        print("Usage: python3 main_test.py <map_name.png>")
-        return
-
-    # Access the command-line arguments starting from index 1
-    arguments = sys.argv[1:]
-
-    # Print the arguments
-    print("Command-line arguments:")
-    for i, arg in enumerate(arguments, start=1):
-        print(f"Argument {i}: {arg}")
-        if i == 1:
-            map_name = arg
     
     x_init = (30, 30)
     x_goal = (30, 460)
@@ -41,7 +27,7 @@ def main():
     frames_steps = 1
     num_nodes = 50000
     font_size = 25
-    # map_name = 'smile1.png'
+    map_name = 'smile1.png'
     
     scene_map = load_map(map_name, test=True)
     
