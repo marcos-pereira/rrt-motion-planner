@@ -18,6 +18,21 @@ class RRT(RRTPlanner):
                  steer_delta, 
                  scene_map, 
                  max_num_nodes):
+        """Return an RRT planner object that plans by running the method run() or that 
+        plans only one iteration by running the method run_step().
+
+        Args:
+            x_init (tuple): the initial configuration.
+            x_goal (tuple): the goal configuration.
+            goal_radius (double): the radius of a ball around the goal configuration.
+            steer_delta (int): the steer step towards goal when going from a node in the tree
+            towards the new node being added. This parameter is map dependant and will vary
+            for each map.
+            scene_map (numpy matrix): the binary matrix where 0 indicate free space and 1
+            indicate an obstacle.
+            max_num_nodes (_type_): maximum number of nodes to be sampled. The planner stops
+            when this number is reached.
+        """
         super().__init__(x_init, 
                          x_goal, 
                          goal_radius, 
@@ -95,6 +110,14 @@ class RRT(RRTPlanner):
                 break
     
     def run_step(self):
+        """Run only one step of the planner.
+
+        Returns:
+            bool: true, if a path to goal was found, false otherwise.
+            tuple: the nearest node in tree to which the new node will
+            be attached.
+            tuple: the new node to be added to tree.
+        """
         path_found, x_nearest, x_new = self.plan_found()
         
         return path_found, x_nearest, x_new
