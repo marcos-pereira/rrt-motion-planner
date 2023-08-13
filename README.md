@@ -12,7 +12,7 @@ pip install pyglet --user
 
 Next, run the main.py with one of the .png maps as follows:
 ```
-python3 main.py smile.png 15 10 50000 40 40 400 300
+python3 main.py smile.png 15 10 50000 40 40 700 550
 python3 main.py simplemaze.png 15 10 100000 40 40 825 825
 python3 main.py maze1.png 15 10 50000 40 40 750 750
 ```
