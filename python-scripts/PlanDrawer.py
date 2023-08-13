@@ -18,7 +18,7 @@ class Line():
 
 class Path():
     def __init__(self, x1, y1, x2, y2, batch, group):
-        self.path_ = shapes.Line(x1, y1, x2, y2, color=(53, 155, 192), width=4, batch=batch, group=group)
+        self.path_ = shapes.Line(x1, y1, x2, y2, color=(9, 63, 224), width=4, batch=batch, group=group)
 
 class PlanDrawer(pyglet.window.Window):
     def __init__(self,
