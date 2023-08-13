@@ -150,7 +150,7 @@ class RRTStar(RRTPlanner):
         lower_cost_path_found = \
             self.node_to_cost_[x_new] < self.last_cost_to_goal_
         
-        if path_found == True and lower_cost_path_found:
+        if path_found == True and lower_cost_path_found == True:
             print("Goal node radius reached!")
             print(f"Cost: {self.node_to_cost_[x_new]}")
                         
