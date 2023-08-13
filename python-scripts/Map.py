@@ -64,7 +64,7 @@ def load_map(map_name, test=False):
     foreground_mask = np.zeros_like(opening)
     cv2.drawContours(foreground_mask, contours, -1, 255, thickness=cv2.FILLED)
 
-    background_color= (3, 171, 173)
+    background_color= (149, 152, 171)
     bgr_color = (background_color[2], background_color[1], background_color[0])
 
     # Create a white background
