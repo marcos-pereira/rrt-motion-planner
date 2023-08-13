@@ -33,7 +33,7 @@ class RRTPlanner(ABC):
             at the goal.
             steer_delta (int): the step size in pixels when going from a node in the tree
             towards a new sampled node.
-            scene_map (_type_): the scene map.
+            scene_map (numpy matrix): the scene map where 0 indicate free space and 1 indicate obstacles.
             max_num_nodes (int): the maximum number of nodes to run the planner.
         """
         self.x_init_ = x_init
@@ -88,14 +88,20 @@ class RRTPlanner(ABC):
         
     @abstractmethod
     def plan_found(self):
+        """Return if the plan is found.
+        """
         pass
     
     @abstractmethod
     def run(self):
+        """Run the planner until the path to goal is found.
+        """
         pass
     
     @abstractmethod
     def run_step(self):
+        """Run only one step of the planner.
+        """
         pass
     
     def run_test(self):
@@ -215,6 +221,18 @@ class RRTPlanner(ABC):
         return  node
 
     def linear_interpolation(self, node1, node2, delta):
+        """Do a linear interpolation between the node1 and node2
+        using the interpolation factor delta if no collision occurs
+        between node1 and node2.
+
+        Args:
+            node1 (tuple): the source node.
+            node2 (tuple): the destination node.
+            delta (double): the interpolation factor that must be in the interval [0,1].
+
+        Returns:
+            tuple: the last node of the interpolation.
+        """
         
         node1 = np.array([node1[0], node1[1]])
         node2 = np.array([node2[0], node2[1]])

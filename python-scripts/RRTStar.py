@@ -33,8 +33,10 @@ class RRTStar(RRTPlanner):
             x_goal (_type_): The goal configuration node.
             goal_radius (_type_): Radius to be considered within the goal.
             steer_delta (_type_): Value used to steer toward the sampled configurations.
-            gamma_rrt (_type_): Gain used to determine radius of ball for nearest neighbors
-            scene_map (_type_): Map of the scene or configuration space.
+            nearest_neighbor_eta (double) : Gain used to determine radius of ball for nearest neighbors.
+            gamma_rrt (_type_): Gain used to determine radius of ball for nearest neighbors.
+            nearest_neighbor_radius (double): this parameter is not being used and will not take effect.
+            scene_map (numpy matrix): Map of the scene or configuration space where 0 indicate free space and 1 indicate obstacle.
             max_num_nodes (_type_): Maximum number of nodes in the tree.
         """
         super().__init__(x_init, 
@@ -178,7 +180,7 @@ class RRTStar(RRTPlanner):
         return path_found, x_nearest, x_new
     
     def run(self):
-        """ Run the planner on the loaded map with no visualization.
+        """ Run the planner on the loaded map with no visualization until the max_number_nodes is reached.
         """
         while True:
             path_found, x_neaerst, x_new = self.plan_found()
@@ -188,11 +190,27 @@ class RRTStar(RRTPlanner):
                 break
                 
     def run_step(self):
+        """Run only one step of the planner.
+
+        Returns:
+            bool: true, if a path to goal was found, false otherwise.
+            tuple: the nearest node in tree to which the new node will
+            be attached.
+            tuple: the new node to be added to tree.
+        """
         path_found, x_nearest, x_new = self.plan_found()
         
         return path_found, x_nearest, x_new
     
     def get_nearest_neighbors(self, node):
+        """Get the nearest neighbors to the node in the tree.
+
+        Args:
+            node (tuple): the node from which we determine the nearest neighbors.
+
+        Returns:
+            set: the set of nearest neighbors to the node.
+        """
         dim_configuration_space = len(node)
         eta = self.nearest_neighbor_eta_
         gamma_rrtstar = self.gamma_rrt_
@@ -216,9 +234,27 @@ class RRTStar(RRTPlanner):
         return nearest_neighbors_set
         
     def get_neighbors_from_nodes_list(self, nodes_list, indexes):
+        """Get the neighbors set from the node_list in tree given the indexes of the the neighbors.
+
+        Args:
+            nodes_list (_type_): the node list of the whole tree.
+            indexes (_type_): the indexes of the neighbors.
+
+        Returns:
+            set: the set of neighbors.
+        """
         return [nodes_list[node_num] for (x, node_num) in indexes]
     
-    def cost_between_nodes(self, node1, node2):
+    def cost_to_new_node(self, node1, node2):
+        """Return the cost to node2 when connected to node1 in the tree.
+
+        Args:
+            node1 (tuple): the node in the tree.
+            node2 (tuple): the node to be connected to node1.
+
+        Returns:
+            double: the cost to node2.
+        """
         return self.node_to_cost_[node1] + self.nodes_distance(node1, node2)
     
     def get_min_cost_node(self, new_node, nearest_node, nearest_neighbors):
@@ -234,13 +270,13 @@ class RRTStar(RRTPlanner):
             double: the minimum cost from min_cost_node to new_node.
         """
         min_cost_node = nearest_node        
-        cost_min = self.cost_between_nodes(nearest_node, new_node)
+        cost_min = self.cost_to_new_node(nearest_node, new_node)
         
         # Get node with minum cost to new node
         for node in nearest_neighbors:
-            if self.cost_between_nodes(node, new_node) < cost_min:
+            if self.cost_to_new_node(node, new_node) < cost_min:
                 min_cost_node = node
-                cost_min = self.cost_between_nodes(node, new_node)
+                cost_min = self.cost_to_new_node(node, new_node)
         
         return min_cost_node, cost_min
     

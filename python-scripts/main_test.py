@@ -1,10 +1,23 @@
+#    This code is distributed WITHOUT ANY WARRANTY, without the implied
+#   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#   See the GNU Lesser General Public License for more details.
+  
+#   The license is distributed along with this repository or you can check
+#   <http://www.gnu.org/licenses/> for more details.
+
+# Contributors: 
+# marcos-pereira (https://github.com/marcos-pereira)
+
+
 #!/usr/bin/env python
 from rtree import index
 from RRT import RRT
 from RRTStar import RRTStar
 from Map import load_map
+import sys
 
 def main():
+    
     x_init = (30, 30)
     x_goal = (30, 460)
     goal_radius = 10
@@ -14,7 +27,7 @@ def main():
     frames_steps = 1
     num_nodes = 50000
     font_size = 25
-    map_name = 'smile1.png'
+    map_name = 'smile.png'
     
     scene_map = load_map(map_name, test=True)
     
