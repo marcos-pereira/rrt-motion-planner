@@ -36,29 +36,43 @@ def load_map(map_name, test=False):
                                       cv2.THRESH_BINARY)
 
     # Morphological operations
-    kernel = np.ones((3, 3), np.uint8)
-    obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
-    # threshold = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, kernel)
-    obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
-    obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
-    obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
-    obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
-    obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
-    obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
-    obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
+    # kernel = np.ones((3, 3), np.uint8)
+    # obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
+    # # threshold = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, kernel)
+    # obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
+    # obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
+    # obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
+    # obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
+    # obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
+    # obstacles_map = cv2.dilate(obstacles_map, kernel, iterations=1)
+    # obstacles_map = cv2.erode(obstacles_map, kernel, iterations=1)
+    
+    # Invert black and white
+    no_background_image = 255 - obstacles_map
+    
+    # Apply adaptive thresholding to create a binary mask
+    _, thresholded = cv2.threshold(no_background_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # Apply morphological operations to clean up the mask
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    opening = cv2.morphologyEx(thresholded, cv2.MORPH_OPEN, kernel, iterations=3)
         
-    # Find contours of the foreground objects
-    contours, _ = cv2.findContours(obstacles_map, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    # Create a mask to remove the background
-    mask = np.zeros_like(image)
-    
-    # Fill the detected foreground contours in the mask
-    cv2.drawContours(mask, contours, -1, 255, thickness=cv2.FILLED)
-    
-    # Apply the mask to the original image
-    result = cv2.bitwise_and(image, mask)
-    
+    # Find contours in the mask
+    contours, _ = cv2.findContours(opening, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Create a mask for the foreground
+    foreground_mask = np.zeros_like(opening)
+    cv2.drawContours(foreground_mask, contours, -1, 255, thickness=cv2.FILLED)
+
+    background_color= (3, 171, 173)
+    bgr_color = (background_color[2], background_color[1], background_color[0])
+
+    # Create a white background
+    background = np.ones_like(image) * bgr_color
+
+    # Copy the foreground onto the white background using the mask
+    result = np.where(np.expand_dims(foreground_mask, axis=-1), image, background)
+
     # Save the result to the specified output path
     map_no_background = "no_background.png"
     cv2.imwrite(map_no_background, result)
