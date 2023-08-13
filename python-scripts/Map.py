@@ -13,6 +13,18 @@ import cv2
 import numpy as np
 
 def load_map(map_name, test=False):
+    """Return a binary matrix where 0 indicate free space and 1 
+    indicate occupied space by obstacle.
+
+    Args:
+        map_name (_type_): the name of the map figure as a .png file.
+        test (bool, optional): if in test mode, i.e., True, the map is not shown. 
+        Defaults to False.
+
+    Returns:
+        numpy array: the binary matrix map where 0 indicte free space and
+        1 indicate occupied space by obstacle.
+    """
     # Load drawing
     image = cv2.imread(map_name)
 
