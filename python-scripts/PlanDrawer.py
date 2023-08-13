@@ -28,6 +28,18 @@ class PlanDrawer(pyglet.window.Window):
                  font_size,
                  *args,
                  **kwargs):
+        """Return an object that draw the plans by executing the methods run() to stop at
+        the first path to goal found or run_forever() to keep optimizing the path to goal
+        in the case the RRTStar is used.
+
+        Args:
+            map_name (_type_): the name of the map figure <map_name>.png file. The
+            .png extension is needed.
+            width (_type_): the map width.
+            height (_type_): the map height.
+            font_size (_type_): the size of the font used to print the cost to goal of the path
+            found in the map.
+        """
         super(PlanDrawer, self).__init__(width, height, *args,
                                          **kwargs)
         
@@ -78,7 +90,8 @@ class PlanDrawer(pyglet.window.Window):
         self.key_ = pyglet.window.key
         
     def on_key_press(self, symbol, modifiers):
-        """ Do event on key press from the symbol.
+        """ Do event on key press from the symbol. Press 'esc' to stop drawing and
+        close window and press 's' to start planning and drawing.
 
         Args:
             symbol (pyglet key_): the keyboard key
