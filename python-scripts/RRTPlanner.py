@@ -33,7 +33,7 @@ class RRTPlanner(ABC):
             at the goal.
             steer_delta (int): the step size in pixels when going from a node in the tree
             towards a new sampled node.
-            scene_map (_type_): the scene map.
+            scene_map (numpy matrix): the scene map where 0 indicate free space and 1 indicate obstacles.
             max_num_nodes (int): the maximum number of nodes to run the planner.
         """
         self.x_init_ = x_init
