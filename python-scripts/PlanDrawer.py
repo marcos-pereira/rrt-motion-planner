@@ -8,17 +8,17 @@
 # Contributors: 
 # marcos-pereira (https://github.com/marcos-pereira)
 
-from pyglet import *
-from pyglet.gl import *
+import pyglet
+from pyglet import shapes, image
 import numpy as np
 
 class Line():
     def __init__(self, x1, y1, x2, y2, batch, group):
-        self.line_ = shapes.Line(x1, y1, x2, y2, color=(196, 0, 183), width=2, batch=batch, group=group)
+        self.line_ = shapes.Line(x1, y1, x2, y2, color=(196, 0, 183), thickness=2, batch=batch, group=group)
 
 class Path():
     def __init__(self, x1, y1, x2, y2, batch, group):
-        self.path_ = shapes.Line(x1, y1, x2, y2, color=(11, 39, 219), width=5, batch=batch, group=group)
+        self.path_ = shapes.Line(x1, y1, x2, y2, color=(11, 39, 219), thickness=5, batch=batch, group=group)
 
 class PlanDrawer(pyglet.window.Window):
     def __init__(self,
@@ -82,7 +82,7 @@ class PlanDrawer(pyglet.window.Window):
         
         ## Store path cost text
         self.path_cost_text_ = pyglet.text.Label(
-            'Path cost: ' + str(np.Inf),
+            'Path cost: ' + str(np.inf),
             font_name='Arial',
             font_size=self.font_size_, x=0, y=self.font_size_,
             batch=self.batch_, group=self.path_layer_)
