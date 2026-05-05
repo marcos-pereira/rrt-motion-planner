@@ -10,6 +10,12 @@ pip install -U scikit-learn
 pip install pyglet --user
 ```
 
+Alternatively, use the requirements.txt file:
+```
+cd python-scripts
+pip install -r requirements.txt
+```
+
 Next, run the main.py with one of the .png maps as follows:
 ```
 python3 main.py smile.png 15 10 50000 40 40 700 550
