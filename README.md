@@ -2,22 +2,31 @@
 This repository will contain the implementation of some RRT motion planners.
 
 # How to run this code?
-First, install pygame, rtree, and scikit, and pyglet:
+First, create a virtual environment and activate it:
+```bash
+virtualenv my_venv
+source my_venv/bin/activate
 ```
-python3 -m pip install -U pygame --user
+
+Then, install pygame, rtree, and scikit, and pyglet:
+```bash
+python3 -m pip install -U pygame 
 pip install rtree
 pip install -U scikit-learn
-pip install pyglet --user
+pip install pyglet
 ```
 
 Alternatively, use the requirements.txt file:
-```
+```bash
+cd rrt-motion-planner
+source my_venv/bin/activate
 cd python-scripts
 pip install -r requirements.txt
 ```
 
 Next, run the main.py with one of the .png maps as follows:
-```
+```bash
+cd python-scripts
 python3 main.py smile.png 15 10 50000 40 40 700 550
 python3 main.py simplemaze.png 15 10 100000 40 40 825 825
 python3 main.py maze1.png 15 10 100000 40 40 750 750
