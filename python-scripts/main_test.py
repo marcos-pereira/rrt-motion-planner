@@ -25,7 +25,7 @@ def main():
     near_radius = 30
     search_window = 800 # 400, 800, 1024
     frames_steps = 1
-    num_nodes = 50000
+    num_nodes = 7500
     font_size = 25
     map_name = 'smile.png'
     

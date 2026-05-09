@@ -10,7 +10,7 @@
 
 from abc import ABC, abstractmethod
 import numpy as np
-import random
+from random_config import random
 from rtree import index
 
 class RRTPlanner(ABC):
