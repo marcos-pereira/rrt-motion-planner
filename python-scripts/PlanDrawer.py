@@ -145,7 +145,7 @@ class PlanDrawer(pyglet.window.Window):
             draw_x_init = shapes.Circle(init_node[0], 
                                         self.map_height_-init_node[1], 
                                         radius=goal_radius, 
-                                        color=(255, 207, 88,100), 
+                                        color=(255, 207, 88), 
                                         batch=self.batch_, 
                                         group=self.foreground_)
             draw_x_goal = shapes.Circle(goal_node[0], 
