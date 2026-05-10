@@ -23,10 +23,7 @@ def main():
     goal_radius = 10
     steer_delta = 15
     near_radius = 30
-    search_window = 800 # 400, 800, 1024
-    frames_steps = 1
     num_nodes = 7500
-    font_size = 25
     map_name = 'smile.png'
     
     scene_map = load_map(map_name, test=True)
