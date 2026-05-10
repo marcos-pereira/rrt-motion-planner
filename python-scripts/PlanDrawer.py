@@ -107,7 +107,7 @@ class PlanDrawer(pyglet.window.Window):
         if symbol == self.key_.S:
             self.drawing_ = 1
             
-    def draw(self, tree_builder : TreeBuilder, goal_node : tuple[int, int], goal_radius : int):
+    def draw(self, tree_builder : TreeBuilder, goal_node : tuple[int, int], goal_radius : int, path : list[tuple[int, int]]):
         """Draw the nodes and edges in the graph.
 
         Args:
@@ -163,8 +163,21 @@ class PlanDrawer(pyglet.window.Window):
             
             event = self.dispatch_events()
 
-            if goal_reached:
-                return
+        # Draw path to goal if goal reached
+        if goal_reached:
+            for i in range(len(path)-1):
+                self.path_line_.add(Path(path[i][0],
+                                        self.map_height_-path[i][1],
+                                        path[i+1][0],
+                                        self.map_height_-path[i+1][1], 
+                                        batch=self.batch_, 
+                                        group=self.path_layer_))
+            
+            self.batch_.draw()
+            
+            # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
+            # Facilitates the dispatch of events
+            self.flip()
         
     def draw_and_plan(self, planner):
         """ Returns True if plan still not found.
