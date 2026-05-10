@@ -118,36 +118,29 @@ class PlanDrawer(pyglet.window.Window):
         
         # Get init node to start drawing the graph from the root node
         init_node = tree_builder.get_init_node()
+        edges_in_order = tree_builder.get_edges_in_order()
         
         # Goal reached
         goal_reached = False
-                   
-        # Draw edges in the graph following the order they were added to the tree
-        for parent_node, children_nodes in tree_builder.adjacency_list_.items():
-            for child_node in children_nodes:
-                edge_node1 = parent_node
-                edge_node2 = child_node
-            
-                self.lines_.append(Line(edge_node1[0], 
-                                    self.map_height_-edge_node1[1], 
-                                    edge_node2[0], 
-                                    self.map_height_-edge_node2[1], 
+        goal_color = (92, 214, 118, 100)
+
+        # Draw edges in the exact order x_new was generated.
+        for parent_node, child_node in edges_in_order:
+            self.lines_.append(Line(parent_node[0], 
+                                    self.map_height_-parent_node[1], 
+                                    child_node[0], 
+                                    self.map_height_-child_node[1], 
                                     self.batch_, 
                                     self.foreground_))
-                
-            if goal_reached == False:
-                goal_color = (92, 214, 118,100)
-            
-            # Compute distance between child node and goal node
+
             p_child = np.array(child_node)
             p_goal = np.array(goal_node)
             distance_to_goal = np.linalg.norm(p_child - p_goal)
-            
+
             if distance_to_goal <= goal_radius:
                 goal_color = (10, 214, 118)
                 goal_reached = True
-                        
-            
+
             # Draw x_init and x_goal
             draw_x_init = shapes.Circle(init_node[0], 
                                         self.map_height_-init_node[1], 
@@ -169,6 +162,9 @@ class PlanDrawer(pyglet.window.Window):
             self.flip()
             
             event = self.dispatch_events()
+
+            if goal_reached:
+                return
         
     def draw_and_plan(self, planner):
         """ Returns True if plan still not found.
