@@ -13,6 +13,8 @@ import numpy as np
 from random_config import random
 from rtree import index
 
+from TreeBuilder import TreeBuilder
+
 class RRTPlanner(ABC):
     def __init__(self,
                  x_init,
@@ -71,7 +73,11 @@ class RRTPlanner(ABC):
         self.rrt_graph_ = (self.nodes_, self.edges_)
         
         x_init_id = 0
-        self.insert_node_to_tree(x_init, x_init_id)
+        self.insert_node_to_tree(x_init, x_init_id)           
+        
+        # Initialize tree builder to maintain the connectivity between 
+        # nodes and edges in the graph        
+        self.tree_builder_ = TreeBuilder(x_init)
         
         ## Used to detect collisions with obstacles
         self.ones_in_drawing_ = np.where(self.scene_map_ == 1)
@@ -177,7 +183,7 @@ class RRTPlanner(ABC):
 
         return x_rand
     
-    def nodes_distance(self, node1, node2):
+    def nodes_distance(self, node1: tuple[int, int], node2: tuple[int, int]) -> float:
         """ Returns the distance between node1 and node2.
 
         Args:
@@ -193,7 +199,7 @@ class RRTPlanner(ABC):
 
         return distance
     
-    def steer(self, node1, node2, delta):
+    def steer(self, node1: tuple[int, int], node2: tuple[int, int], delta: float) -> tuple[int, int]:
         """ Returns a node between node1 and node2. If they are close by delta, then 
         return node2.
 
@@ -280,7 +286,7 @@ class RRTPlanner(ABC):
 
         return path, path_cost
     
-    def nearest_node(self, current_node, rrt_graph):
+    def nearest_node(self, current_node: tuple[int, int], rrt_graph) -> tuple[int, int]:
         """ Get nearest node to current node in the rrt_graph.
 
         Args:
@@ -303,7 +309,7 @@ class RRTPlanner(ABC):
         
         return nearest_node_pair_as_list[0]
 
-    def configuration_in_free_space(self):
+    def configuration_in_free_space(self) -> tuple[int, int]:
         """Get a configuration in the free configuration space.
 
         Returns:
@@ -318,7 +324,7 @@ class RRTPlanner(ABC):
             
         return x_rand
     
-    def cost_to_node(self, node): 
+    def cost_to_node(self, node: tuple[int, int]) -> float:
         """ Return the cost from initial node in the tree to the node.
 
         Args:

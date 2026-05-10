@@ -73,7 +73,7 @@ class RRT(RRTPlanner):
                     continue
                 else:
                     # print("valid node found")
-                    # Valid node found
+                    # Valid node found                    
                     break
 
         ## x_nearest will be the parent node of x_new
@@ -84,12 +84,15 @@ class RRT(RRTPlanner):
         ## Add x_new to graph
         self.insert_node_to_tree(x_new, 0)
         self.nodes_list_.append(x_new)
-
+        
         ## Increment node count
         self.node_count_ += 1
 
         self.add_edge(x_nearest, x_new)
-        
+                    
+        # Add node to tree builder to keep track of the neighbors of each node in the graph
+        self.tree_builder_.add_node(x_nearest, x_new)
+                
         path_found = self.path_to_goal_found(x_new, self.x_goal_, self.goal_radius_)
         
         return path_found, x_nearest, x_new
@@ -105,7 +108,7 @@ class RRT(RRTPlanner):
                 print(f"Maximum number of {self.max_num_nodes_} reached")
                 break
             
-            if path_found:
+            if path_found == True:
                 print("Path to goal found!")
                 break
     
