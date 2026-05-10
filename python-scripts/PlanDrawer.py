@@ -118,6 +118,9 @@ class PlanDrawer(pyglet.window.Window):
         
         # Get init node to start drawing the graph from the root node
         init_node = tree_builder.get_init_node()
+        
+        # Goal reached
+        goal_reached = False
                    
         # Draw edges in the graph following the order they were added to the tree
         for parent_node, children_nodes in tree_builder.adjacency_list_.items():
@@ -131,18 +134,31 @@ class PlanDrawer(pyglet.window.Window):
                                     self.map_height_-edge_node2[1], 
                                     self.batch_, 
                                     self.foreground_))
+                
+            if goal_reached == False:
+                goal_color = (92, 214, 118,100)
+            
+            # Compute distance between child node and goal node
+            p_child = np.array(child_node)
+            p_goal = np.array(goal_node)
+            distance_to_goal = np.linalg.norm(p_child - p_goal)
+            
+            if distance_to_goal <= goal_radius:
+                goal_color = (10, 214, 118)
+                goal_reached = True
+                        
             
             # Draw x_init and x_goal
             draw_x_init = shapes.Circle(init_node[0], 
                                         self.map_height_-init_node[1], 
                                         radius=goal_radius, 
-                                        color=(255, 207, 88), 
+                                        color=(255, 207, 88,100), 
                                         batch=self.batch_, 
                                         group=self.foreground_)
             draw_x_goal = shapes.Circle(goal_node[0], 
                                         self.map_height_-goal_node[1], 
                                         radius=goal_radius, 
-                                        color=(92, 214, 118), 
+                                        color=goal_color, 
                                         batch=self.batch_, 
                                         group=self.foreground_)
             
