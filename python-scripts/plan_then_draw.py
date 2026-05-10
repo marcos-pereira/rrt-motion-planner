@@ -42,7 +42,7 @@ def main():
     rrt_planner.run()
     
     plan_drawer = PlanDrawer(map_name, map_width, map_height, font_size)
-    plan_drawer.draw(rrt_planner.tree_builder_)
+    plan_drawer.draw(rrt_planner.tree_builder_, x_goal, goal_radius)
 
     gamma_rrt = 1000
     eta_rrt = 20
