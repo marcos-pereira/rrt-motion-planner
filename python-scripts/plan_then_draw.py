@@ -39,7 +39,7 @@ def main():
                     scene_map,
                     num_nodes)
     
-    rrt_planner.run()
+    path, path_cost = rrt_planner.run()
     
     plan_drawer = PlanDrawer(map_name, map_width, map_height, font_size)
     plan_drawer.draw(rrt_planner.tree_builder_, x_goal, goal_radius)
