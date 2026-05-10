@@ -95,7 +95,7 @@ class RRT(RRTPlanner):
                 
         path_found = self.path_to_goal_found(x_new, self.x_goal_, self.goal_radius_)
         
-        return path_found, x_nearest, x_new
+        return path_found
     
     def run(self):
         """ Run the planner on the loaded map with no visualization.
