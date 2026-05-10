@@ -10,3 +10,6 @@ class TreeBuilder:
                 self.adjacency_list_[new_node] = list()
         else:
             raise ValueError(f"Parent node {parent_node} not found in the tree. Connectivity between nodes and edges cannot be maintained.")
+        
+    def get_init_node(self):
+        return list(self.adjacency_list_.keys())[0]
