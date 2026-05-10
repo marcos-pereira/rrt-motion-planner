@@ -107,7 +107,7 @@ class PlanDrawer(pyglet.window.Window):
         if symbol == self.key_.S:
             self.drawing_ = 1
             
-    def draw(self, tree_builder : TreeBuilder):
+    def draw(self, tree_builder : TreeBuilder, goal_node : tuple[int, int], goal_radius : int):
         """Draw the nodes and edges in the graph.
 
         Args:
@@ -115,6 +115,9 @@ class PlanDrawer(pyglet.window.Window):
             edges_in_graph (list): the list of edges in the graph.
         """
         self.clear()
+        
+        # Get init node to start drawing the graph from the root node
+        init_node = tree_builder.get_init_node()
                    
         # Draw edges in the graph following the order they were added to the tree
         for parent_node, children_nodes in tree_builder.adjacency_list_.items():
@@ -129,19 +132,19 @@ class PlanDrawer(pyglet.window.Window):
                                     self.batch_, 
                                     self.foreground_))
             
-            ## Draw x_init and x_goal
-            # draw_x_init = shapes.Circle(planner.x_init_[0], 
-            #                             self.map_height_-planner.x_init_[1], 
-            #                             radius=planner.goal_radius_, 
-            #                             color=(255, 207, 88), 
-            #                             batch=self.batch_, 
-            #                             group=self.foreground_)
-            # draw_x_goal = shapes.Circle(planner.x_goal_[0], 
-            #                             self.map_height_-planner.x_goal_[1], 
-            #                             radius=planner.goal_radius_, 
-            #                             color=(92, 214, 118), 
-            #                             batch=self.batch_, 
-            #                             group=self.foreground_)
+            # Draw x_init and x_goal
+            draw_x_init = shapes.Circle(init_node[0], 
+                                        self.map_height_-init_node[1], 
+                                        radius=goal_radius, 
+                                        color=(255, 207, 88), 
+                                        batch=self.batch_, 
+                                        group=self.foreground_)
+            draw_x_goal = shapes.Circle(goal_node[0], 
+                                        self.map_height_-goal_node[1], 
+                                        radius=goal_radius, 
+                                        color=(92, 214, 118), 
+                                        batch=self.batch_, 
+                                        group=self.foreground_)
             
             self.batch_.draw()
             
