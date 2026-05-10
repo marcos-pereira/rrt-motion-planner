@@ -107,7 +107,7 @@ class PlanDrawer(pyglet.window.Window):
         if symbol == self.key_.S:
             self.drawing_ = 1
             
-    def draw(self, tree_builder : TreeBuilder):
+    def draw(self, tree_builder : TreeBuilder, goal_node : tuple[int, int], goal_radius : int, path : list[tuple[int, int]]):
         """Draw the nodes and edges in the graph.
 
         Args:
@@ -115,33 +115,45 @@ class PlanDrawer(pyglet.window.Window):
             edges_in_graph (list): the list of edges in the graph.
         """
         self.clear()
-                   
-        # Draw edges in the graph following the order they were added to the tree
-        for parent_node, children_nodes in tree_builder.adjacency_list_.items():
-            for child_node in children_nodes:
-                edge_node1 = parent_node
-                edge_node2 = child_node
-            
-                self.lines_.append(Line(edge_node1[0], 
-                                    self.map_height_-edge_node1[1], 
-                                    edge_node2[0], 
-                                    self.map_height_-edge_node2[1], 
+        
+        # Get init node to start drawing the graph from the root node
+        init_node = tree_builder.get_init_node()
+        edges_in_order = tree_builder.get_edges_in_order()
+        
+        # Goal reached
+        goal_reached = False
+        goal_color = (92, 214, 118, 100)
+
+        # Draw edges in the exact order x_new was generated.
+        for parent_node, child_node in edges_in_order:
+            self.lines_.append(Line(parent_node[0], 
+                                    self.map_height_-parent_node[1], 
+                                    child_node[0], 
+                                    self.map_height_-child_node[1], 
                                     self.batch_, 
                                     self.foreground_))
-            
-            ## Draw x_init and x_goal
-            # draw_x_init = shapes.Circle(planner.x_init_[0], 
-            #                             self.map_height_-planner.x_init_[1], 
-            #                             radius=planner.goal_radius_, 
-            #                             color=(255, 207, 88), 
-            #                             batch=self.batch_, 
-            #                             group=self.foreground_)
-            # draw_x_goal = shapes.Circle(planner.x_goal_[0], 
-            #                             self.map_height_-planner.x_goal_[1], 
-            #                             radius=planner.goal_radius_, 
-            #                             color=(92, 214, 118), 
-            #                             batch=self.batch_, 
-            #                             group=self.foreground_)
+
+            p_child = np.array(child_node)
+            p_goal = np.array(goal_node)
+            distance_to_goal = np.linalg.norm(p_child - p_goal)
+
+            if distance_to_goal <= goal_radius:
+                goal_color = (10, 214, 118)
+                goal_reached = True
+
+            # Draw x_init and x_goal
+            draw_x_init = shapes.Circle(init_node[0], 
+                                        self.map_height_-init_node[1], 
+                                        radius=goal_radius, 
+                                        color=(255, 207, 88), 
+                                        batch=self.batch_, 
+                                        group=self.foreground_)
+            draw_x_goal = shapes.Circle(goal_node[0], 
+                                        self.map_height_-goal_node[1], 
+                                        radius=goal_radius, 
+                                        color=goal_color, 
+                                        batch=self.batch_, 
+                                        group=self.foreground_)
             
             self.batch_.draw()
             
@@ -150,6 +162,22 @@ class PlanDrawer(pyglet.window.Window):
             self.flip()
             
             event = self.dispatch_events()
+
+        # Draw path to goal if goal reached
+        if goal_reached:
+            for i in range(len(path)-1):
+                self.path_line_.add(Path(path[i][0],
+                                        self.map_height_-path[i][1],
+                                        path[i+1][0],
+                                        self.map_height_-path[i+1][1], 
+                                        batch=self.batch_, 
+                                        group=self.path_layer_))
+            
+            self.batch_.draw()
+            
+            # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
+            # Facilitates the dispatch of events
+            self.flip()
         
     def draw_and_plan(self, planner):
         """ Returns True if plan still not found.

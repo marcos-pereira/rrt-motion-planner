@@ -40,7 +40,7 @@ class RRT(RRTPlanner):
                          scene_map, 
                          max_num_nodes)
         
-    def plan_found(self):
+    def plan_found(self) -> tuple[bool, tuple[int, int], tuple[int, int]]:
         """ Returns if a plan could be found, the nearest node to the newest node, and the new node.
 
         Returns:
@@ -97,20 +97,30 @@ class RRT(RRTPlanner):
         
         return path_found, x_nearest, x_new
     
-    def run(self):
-        """ Run the planner on the loaded map with no visualization.
+    def run(self) -> tuple[list[tuple[int, int]], float]:
+        """ 
+        Run the RRT planner until a path to goal is found or until the maximum number of nodes is reached.
+        Returns:
+            list: the path from x_init to x_goal.
+            float: the cost of the path from x_init to x_goal.
         """
         
         while True:            
-            path_found = self.plan_found()
+            path_found, x_nearest, x_new = self.plan_found()
             
-            if self.max_number_nodes():
+            if self.max_number_nodes() == True:
                 print(f"Maximum number of {self.max_num_nodes_} reached")
                 break
             
             if path_found == True:
-                print("Path to goal found!")
+                print("Path to goal found!")                
+                path, path_cost = self.path(x_new)
+                # Log number of nodes in tree and path cost
+                print(f"Number of nodes in tree: {self.node_count_}")
+                print(f"Path cost: {path_cost}")
                 break
+            
+        return path, path_cost
     
     def run_step(self):
         """Run only one step of the planner.
