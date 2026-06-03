@@ -11,8 +11,8 @@ name: rrt-motion-planner
 # Or build everything at once:
 #   docker compose -f docker/docker-compose.yml build rrt-planner rrt-webvis
 #
-# Run main.py (default — RRT live step-by-step, then RRT* continuously):
-#   docker compose -f docker/docker-compose.yml up
+# Run main.py (desktop, live step-by-step):
+#   docker compose -f docker/docker-compose.yml --profile desktop up
 #
 # Run plan_then_draw.py (RRT full run then edge-by-edge replay):
 #   docker compose -f docker/docker-compose.yml --profile plan-then-draw up
@@ -47,10 +47,11 @@ x-base: &base
 # ── Services ───────────────────────────────────────────────────────────────
 services:
 
-  # ── Desktop: live step-by-step (default) ──────────────────────────────
+  # ── Desktop: live step-by-step ────────────────────────────────────────
   rrt-planner:
     <<: *base
     container_name: rrt-motion-planner
+    profiles: [desktop]
     command:
       - python3
       - main.py

@@ -40,8 +40,8 @@ xhost +local:docker
 docker compose -f docker/docker-compose.yml build rrt-planner
 docker compose -f docker/docker-compose.yml build rrt-webvis
 
-# 3a — Run the desktop visualizer (default)
-docker compose -f docker/docker-compose.yml up
+# 3a — Run the desktop visualizer
+docker compose -f docker/docker-compose.yml --profile desktop up
 
 # 3b — Run the web visualizer, then open http://localhost:8000
 docker compose -f docker/docker-compose.yml --profile webvis up
@@ -49,9 +49,11 @@ docker compose -f docker/docker-compose.yml --profile webvis up
 
 ## Profiles
 
+Each service has its own profile so only the requested one starts — profiles never interfere with each other.
+
 | Profile | Service | Entry point | Description |
 |---------|---------|------------|-------------|
-| *(default)* | `rrt-planner` | `main.py` | RRT live step-by-step drawing, then RRT* continuous optimization |
+| `desktop` | `rrt-planner` | `main.py` | RRT live step-by-step drawing, then RRT* continuous optimization |
 | `plan-then-draw` | `plan-then-draw` | `plan_then_draw.py` | RRT runs fully first, then replays the tree edge-by-edge |
 | `webvis` | `rrt-webvis` | `server.py` (uvicorn) | PixiJS web visualizer at http://localhost:8000 |
 
@@ -61,20 +63,20 @@ All commands from the project root.
 
 ```bash
 # Desktop — default map (smile.png)
-docker compose -f docker/docker-compose.yml up
+docker compose -f docker/docker-compose.yml --profile desktop up
 
 # Desktop — plan-then-draw mode
 docker compose -f docker/docker-compose.yml --profile plan-then-draw up
 
 # Desktop — custom map and arguments
-docker compose -f docker/docker-compose.yml run rrt-planner \
+docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner \
   python3 main.py maze1.png 15 10 50000 40 40 700 550
 
 # Web visualizer
 docker compose -f docker/docker-compose.yml --profile webvis up
 
 # Shell inside the base container
-docker compose -f docker/docker-compose.yml run rrt-planner bash
+docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner bash
 ```
 
 ## CLI Arguments (`main.py`)

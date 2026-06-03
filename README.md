@@ -69,8 +69,8 @@ xhost +local:docker
 docker compose -f docker/docker-compose.yml build rrt-planner
 docker compose -f docker/docker-compose.yml build rrt-webvis
 
-# Desktop visualizer (default)
-docker compose -f docker/docker-compose.yml up
+# Desktop visualizer
+docker compose -f docker/docker-compose.yml --profile desktop up
 
 # Plan-then-draw mode
 docker compose -f docker/docker-compose.yml --profile plan-then-draw up
