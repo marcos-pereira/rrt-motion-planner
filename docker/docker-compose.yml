@@ -1,0 +1,52 @@
+name: rrt-motion-planner
+
+# Run the RRT/RRT* planner with pyglet GUI forwarded to the host via X11.
+#
+# Before starting, allow the container to connect to the host X server:
+#   xhost +local:docker
+#
+# Build the image:
+#   docker compose -f docker/docker-compose.yml build
+#
+# Run with default arguments (smile.png, step=15, goal_radius=10, nodes=50000):
+#   docker compose -f docker/docker-compose.yml up
+#
+# Run with custom arguments by overriding the command:
+#   docker compose -f docker/docker-compose.yml run rrt-planner \
+#     python3 main.py maze1.png 15 10 50000 40 40 700 550
+#
+# Code changes in python-scripts/ are reflected immediately on the next run
+# because the directory is mounted as a volume (no rebuild needed).
+
+services:
+  rrt-planner:
+    build:
+      # Build context is the project root so the Dockerfile can access python-scripts/
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: rrt-motion-planner:latest
+    container_name: rrt-motion-planner
+    environment:
+      DISPLAY: ${DISPLAY:-:0}
+      # Force Mesa software renderer — avoids DRI/DRM device access errors in Docker.
+      # Set to 0 and add "devices: - /dev/dri:/dev/dri" below for hardware GPU rendering.
+      LIBGL_ALWAYS_SOFTWARE: "1"
+    volumes:
+      # X11 socket for GUI forwarding
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Mount source code so edits are picked up without rebuilding
+      - ../python-scripts:/workspace
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command:
+      - python3
+      - main.py
+      - smile.png
+      - "15"
+      - "10"
+      - "50000"
+      - "40"
+      - "40"
+      - "700"
+      - "550"
