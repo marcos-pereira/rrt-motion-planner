@@ -33,15 +33,25 @@ docker compose -f docker/docker-compose.yml build
 docker compose -f docker/docker-compose.yml up
 ```
 
+## Profiles
+
+| Profile | Service | Script | Description |
+|---------|---------|--------|-------------|
+| *(default)* | `rrt-planner` | `main.py` | RRT live step-by-step drawing, then RRT* continuous optimization |
+| `plan-then-draw` | `plan-then-draw` | `plan_then_draw.py` | RRT runs fully first, then replays the tree edge-by-edge |
+
 ## Examples
 
 All commands from the project root.
 
 ```bash
-# Run with default map (smile.png)
+# Run main.py with default map (smile.png)
 docker compose -f docker/docker-compose.yml up
 
-# Run with a custom map and arguments
+# Run plan_then_draw.py (RRT full run then edge-by-edge replay)
+docker compose -f docker/docker-compose.yml --profile plan-then-draw up
+
+# Run main.py with a custom map and arguments
 docker compose -f docker/docker-compose.yml run rrt-planner \
   python3 main.py maze1.png 15 10 50000 40 40 700 550
 
