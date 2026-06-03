@@ -8,8 +8,11 @@ name: rrt-motion-planner
 # Build the image:
 #   docker compose -f docker/docker-compose.yml build
 #
-# Run with default arguments (smile.png, step=15, goal_radius=10, nodes=50000):
+# Run main.py (RRT live step-by-step, then RRT* continuously) — default service:
 #   docker compose -f docker/docker-compose.yml up
+#
+# Run plan_then_draw.py (RRT runs fully first, then replays tree edge-by-edge):
+#   docker compose -f docker/docker-compose.yml --profile plan-then-draw up
 #
 # Run with custom arguments by overriding the command:
 #   docker compose -f docker/docker-compose.yml run rrt-planner \
@@ -18,27 +21,30 @@ name: rrt-motion-planner
 # Code changes in python-scripts/ are reflected immediately on the next run
 # because the directory is mounted as a volume (no rebuild needed).
 
+x-base: &base
+  build:
+    # Build context is the project root so the Dockerfile can access python-scripts/
+    context: ..
+    dockerfile: docker/Dockerfile
+  image: rrt-motion-planner:latest
+  environment:
+    DISPLAY: ${DISPLAY:-:0}
+    # Force Mesa software renderer — avoids DRI/DRM device access errors in Docker.
+    # Set to 0 and add "devices: - /dev/dri:/dev/dri" below for hardware GPU rendering.
+    LIBGL_ALWAYS_SOFTWARE: "1"
+  volumes:
+    # X11 socket for GUI forwarding
+    - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    # Mount source code so edits are picked up without rebuilding
+    - ../python-scripts:/workspace
+  working_dir: /workspace
+  stdin_open: true
+  tty: true
+
 services:
   rrt-planner:
-    build:
-      # Build context is the project root so the Dockerfile can access python-scripts/
-      context: ..
-      dockerfile: docker/Dockerfile
-    image: rrt-motion-planner:latest
+    <<: *base
     container_name: rrt-motion-planner
-    environment:
-      DISPLAY: ${DISPLAY:-:0}
-      # Force Mesa software renderer — avoids DRI/DRM device access errors in Docker.
-      # Set to 0 and add "devices: - /dev/dri:/dev/dri" below for hardware GPU rendering.
-      LIBGL_ALWAYS_SOFTWARE: "1"
-    volumes:
-      # X11 socket for GUI forwarding
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      # Mount source code so edits are picked up without rebuilding
-      - ../python-scripts:/workspace
-    working_dir: /workspace
-    stdin_open: true
-    tty: true
     command:
       - python3
       - main.py
@@ -50,3 +56,11 @@ services:
       - "40"
       - "700"
       - "550"
+
+  plan-then-draw:
+    <<: *base
+    container_name: rrt-plan-then-draw
+    profiles: [plan-then-draw]
+    command:
+      - python3
+      - plan_then_draw.py
