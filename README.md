@@ -35,9 +35,9 @@ python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg
 Example commands:
 
 ```bash
-python3 main.py smile.png     15 10  50000  40  40  700 550
+python3 main.py smile.png      15 10  50000  40  40  700 550
 python3 main.py simplemaze.png 15 10 100000  40  40  825 825
-python3 main.py maze1.png     15 10 100000  40  40  750 750
+python3 main.py maze1.png      15 10 100000  40  40  750 750
 ```
 
 A window with the loaded map opens first — close it to continue. A black pyglet window will open. Press `s` to start planning with RRT. Press `Esc` to close and open the RRT* window. Press `s` again to start RRT*.
@@ -62,17 +62,21 @@ Then open **http://localhost:8000** in a browser. Select a map, set the paramete
 See [`docker/README.md`](docker/README.md) for full instructions. Quick start:
 
 ```bash
-# Allow the container to connect to the host X server
+# Allow the containers to connect to the host X server (desktop only)
 xhost +local:docker
 
-# Build
-docker compose -f docker/docker-compose.yml build
+# Build images in order (webvis layer depends on the base)
+docker compose -f docker/docker-compose.yml build rrt-planner
+docker compose -f docker/docker-compose.yml build rrt-webvis
 
-# Run the desktop visualizer (main.py)
+# Desktop visualizer (default)
 docker compose -f docker/docker-compose.yml up
 
-# Run the plan-then-draw mode (plan_then_draw.py)
+# Plan-then-draw mode
 docker compose -f docker/docker-compose.yml --profile plan-then-draw up
+
+# Web visualizer — open http://localhost:8000
+docker compose -f docker/docker-compose.yml --profile webvis up
 ```
 
 ---

@@ -1,0 +1,13 @@
+# Webvis layer — extends the planner base image.
+# fastapi and uvicorn are already installed via python-scripts/requirements.txt
+# in the base image, so no extra pip installs are needed here.
+# The webvis source and python-scripts are mounted as volumes at runtime.
+FROM rrt-motion-planner:latest
+
+LABEL maintainer="marcos-pereira"
+LABEL description="RRT Motion Planner — PixiJS web visualizer layer (FastAPI + uvicorn)"
+
+# /app is where webvis/ is mounted at runtime
+WORKDIR /app
+
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
