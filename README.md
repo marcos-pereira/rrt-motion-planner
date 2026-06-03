@@ -2,6 +2,16 @@
 
 Implementations of RRT and RRT* sampling-based motion planners in Python, with both a desktop (pyglet) and a browser-based (PixiJS) visualization.
 
+## Quick test with browser visualizer using docker
+
+```bash
+# 1 — Build the web visualizer image (base image is built automatically)
+docker compose -f docker/docker-compose.yml build rrt-webvis
+
+# 2 — Run the web visualizer, then open http://localhost:8000
+docker compose -f docker/docker-compose.yml --profile webvis up
+```
+
 ---
 
 ## Setup
