@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RRT Visualizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Sidebar ───────────────────────────────────────────── */
+        #sidebar {
+            width: 270px;
+            min-width: 270px;
+            background: #161b22;
+            border-right: 1px solid #21262d;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+        }
+
+        #sidebar h1 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #f0f6fc;
+            letter-spacing: 0.5px;
+        }
+
+        .section-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8b949e;
+            margin-bottom: 2px;
+        }
+
+        .field { display: flex; flex-direction: column; gap: 4px; }
+
+        label {
+            font-size: 0.72rem;
+            color: #8b949e;
+        }
+
+        select, input[type="number"] {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            width: 100%;
+            outline: none;
+        }
+        select:focus, input[type="number"]:focus {
+            border-color: #58a6ff;
+        }
+
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: #c400b7;
+        }
+
+        #run-btn {
+            background: #c400b7;
+            color: #fff;
+            border: none;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.3px;
+            transition: background 0.15s;
+        }
+        #run-btn:hover:not(:disabled) { background: #a3009a; }
+        #run-btn:disabled { background: #30363d; color: #8b949e; cursor: not-allowed; }
+
+        #status {
+            font-size: 0.75rem;
+            color: #8b949e;
+            min-height: 2.8em;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        hr { border: none; border-top: 1px solid #21262d; }
+
+        /* ── Legend ────────────────────────────────────────────── */
+        .legend { display: flex; flex-direction: column; gap: 7px; }
+        .legend-item { display: flex; align-items: center; gap: 9px; font-size: 0.74rem; color: #8b949e; }
+        .swatch-line { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+        .swatch-line.thick { height: 5px; }
+        .swatch-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+        /* ── Canvas area ───────────────────────────────────────── */
+        #canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0d1117;
+            overflow: hidden;
+            position: relative;
+        }
+        #canvas-container canvas { display: block; }
+
+        #placeholder {
+            color: #21262d;
+            text-align: center;
+            user-select: none;
+        }
+        #placeholder .icon { font-size: 4rem; margin-bottom: 12px; }
+        #placeholder p { font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+<aside id="sidebar">
+    <h1>🌲 RRT Visualizer</h1>
+
+    <div class="field">
+        <span class="section-label">Map</span>
+        <select id="map-name"></select>
+    </div>
+
+    <div>
+        <span class="section-label">Start</span>
+        <div class="row" style="margin-top:4px;">
+            <div class="field">
+                <label>x₀</label>
+                <input type="number" id="x0" value="40" min="0">
+            </div>
+            <div class="field">
+                <label>y₀</label>
+                <input type="number" id="y0" value="40" min="0">
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <span class="section-label">Goal</span>
+        <div class="row" style="margin-top:4px;">
+            <div class="field">
+                <label>x_goal</label>
+                <input type="number" id="xg" value="700" min="0">
+            </div>
+            <div class="field">
+                <label>y_goal</label>
+                <input type="number" id="yg" value="550" min="0">
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="field">
+            <label>Steer δ (px)</label>
+            <input type="number" id="steer-delta" value="15" min="1" max="200">
+        </div>
+        <div class="field">
+            <label>Goal radius (px)</label>
+            <input type="number" id="goal-radius" value="10" min="1" max="200">
+        </div>
+    </div>
+
+    <div class="field">
+        <label>Max nodes</label>
+        <input type="number" id="num-nodes" value="20000" min="100" step="1000">
+    </div>
+
+    <hr>
+
+    <div class="field">
+        <label>Speed — <span id="speed-label">50 edges / frame</span></label>
+        <input type="range" id="speed" min="1" max="500" value="50">
+    </div>
+
+    <button id="run-btn">▶ Run RRT</button>
+
+    <div id="status">Ready — select a map and click Run.</div>
+
+    <hr>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="swatch-line" style="background:#C400B7;"></div>
+            Tree edges
+        </div>
+        <div class="legend-item">
+            <div class="swatch-line thick" style="background:#0B27DB;"></div>
+            Path to goal
+        </div>
+        <div class="legend-item">
+            <div class="swatch-dot" style="background:#FFCF58;"></div>
+            Start
+        </div>
+        <div class="legend-item">
+            <div class="swatch-dot" style="background:#0AD676;"></div>
+            Goal
+        </div>
+    </div>
+</aside>
+
+<main id="canvas-container">
+    <div id="placeholder">
+        <div class="icon">🌲</div>
+        <p>Run the planner to see the tree grow here.</p>
+    </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

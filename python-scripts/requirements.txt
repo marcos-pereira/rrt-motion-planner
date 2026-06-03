@@ -1,3 +1,4 @@
+# Planner dependencies
 joblib==1.5.3
 numpy==2.4.4
 opencv-python==4.13.0.92
@@ -6,3 +7,7 @@ rtree==1.4.1
 scikit-learn==1.8.0
 scipy==1.17.1
 threadpoolctl==3.6.0
+
+# Web visualizer dependencies (webvis/server.py)
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
