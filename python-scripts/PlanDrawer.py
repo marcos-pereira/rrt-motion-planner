@@ -13,6 +13,8 @@ from pyglet import shapes, image
 import numpy as np
 
 from TreeBuilder import TreeBuilder
+from RRTPlanner import RRTPlanner
+from RRTStar import RRTStar
 
 class Line():
     def __init__(self, x1, y1, x2, y2, batch, group):
@@ -284,11 +286,11 @@ class PlanDrawer(pyglet.window.Window):
             
         return
 
-    def draw_plan_rrtstar(self, planner):
+    def draw_plan_rrtstar(self, planner : RRTStar):
         """ Returns True if plan still not found.
 
         Args:
-            planner (RRTPlanner): The RRT planner.
+            planner (RRTStar): The RRT* planner.
 
         Returns:
             bool: True if plan still not found.
