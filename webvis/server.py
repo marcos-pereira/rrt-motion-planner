@@ -39,27 +39,32 @@ def compute_plan(
         raise HTTPException(status_code=404, detail=f"Map '{map_name}' not found.")
 
     # load_map uses relative paths and saves no_background.png to CWD
-    original_dir = os.getcwd()
-    os.chdir(MAPS_DIR)
-    try:
-        scene_map = load_map(map_name, test=True)
-        map_height, map_width = scene_map.shape
-        x_init = (x0, y0)
-        x_goal = (xg, yg)
-
-        rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), scene_map, num_nodes)
-
-        path: list = []
-        path_cost: float = float("inf")
+    # (process-wide), so serialize planning runs.
+    with CWD_LOCK:
+        original_dir = os.getcwd()
+        os.chdir(MAPS_DIR)
         try:
-            path, path_cost = rrt.run()
-        except (NameError, UnboundLocalError):
-            # Max nodes reached before a path was found
-            pass
+            try:
+                scene_map = load_map(map_name, test=True)
+            except Exception:
+                raise HTTPException(status_code=400, detail=f"Failed to load map '{map_name}'.")
+            map_height, map_width = scene_map.shape
+            x_init = (x0, y0)
+            x_goal = (xg, yg)
 
-        edges = rrt.tree_builder_.get_edges_in_order()
-    finally:
-        os.chdir(original_dir)
+            rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), scene_map, num_nodes)
+
+            path: list = []
+            path_cost: float = float("inf")
+            try:
+                path, path_cost = rrt.run()
+            except (NameError, UnboundLocalError):
+                # Max nodes reached before a path was found
+                pass
+
+            edges = rrt.tree_builder_.get_edges_in_order()
+        finally:
+            os.chdir(original_dir)
 
     return {
         "edges": [[list(e[0]), list(e[1])] for e in edges],
