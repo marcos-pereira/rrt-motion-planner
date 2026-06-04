@@ -34,7 +34,8 @@ def compute_plan(
     yg: int = 550,
 ):
     """Run the RRT planner and return edges in insertion order plus the path."""
-    if not (MAPS_DIR / map_name).exists():
+    map_path = (MAPS_DIR / map_name).resolve()
+    if map_path.parent != MAPS_DIR or map_path.suffix.lower() != ".png" or not map_path.is_file():
         raise HTTPException(status_code=404, detail=f"Map '{map_name}' not found.")
 
     # load_map uses relative paths and saves no_background.png to CWD
