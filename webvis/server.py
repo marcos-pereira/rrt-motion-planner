@@ -1,12 +1,15 @@
 import os
 import sys
+import threading
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 # Allow overriding the maps/scripts directory via env var for Docker
 MAPS_DIR = Path(os.environ.get("MAPS_DIR", Path(__file__).parent.parent / "python-scripts")).resolve()
+CWD_LOCK = threading.Lock()
 sys.path.insert(0, str(MAPS_DIR))
 
 from Map import load_map
