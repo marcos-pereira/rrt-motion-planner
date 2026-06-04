@@ -136,17 +136,6 @@ class RRTStar(RRTPlanner):
         
         path_found = self.path_to_goal_found(x_new, self.x_goal_, self.goal_radius_)
         
-        # if self.last_goal_node_ is not None:
-        #     cost_to_last_goal = self.node_to_cost_[self.last_goal_node_]
-            
-        #     if cost_to_last_goal < self.last_cost_to_goal_:
-        #         print(f"Lower cost: {cost_to_last_goal}")
-        #         x_reached = self.last_goal_node_
-        #         self.last_path_found_ = self.path(x_reached)
-        #         self.last_goal_node_ = x_reached            
-        #         self.last_cost_to_goal_ = self.node_to_cost_[x_reached]
-        #         path_found = True
-        
         lower_cost_path_found = \
             self.node_to_cost_[x_new] < self.last_cost_to_goal_
         
@@ -159,23 +148,6 @@ class RRTStar(RRTPlanner):
             self.last_path_found_ = self.path(x_new)
             self.last_goal_node_ = x_new      
             self.last_cost_to_goal_ = self.node_to_cost_[x_new]
-        
-        
-        # if path_found == True:
-        #     print("Path found.")
-                        
-        #     lower_cost_path_found = self.cost_to_node(x_new) < self.last_cost_to_goal_
-            
-        #     self.last_cost_to_goal_ = self.cost_to_node(x_new)
-        #     self.last_goal_found_ = x_new
-            
-        #     ## At least one path was found
-        #     self.one_path_found_ = True
-                    
-        #     if lower_cost_path_found == True:
-        #         self.last_cost_to_goal_ = self.cost_to_node(x_new)
-        #         print("Lower cost found.")
-        #         print(f"Cost: {self.last_cost_to_goal_}")
         
         return path_found, x_nearest, x_new
     
