@@ -22,6 +22,14 @@ def list_maps():
     return sorted(f.name for f in MAPS_DIR.glob("*.png") if f.name not in skip)
 
 
+@app.get("/maps/{map_name}")
+def get_map(map_name: str):
+    """Serve a single PNG map file without exposing the entire python-scripts/ directory."""
+    map_path = (MAPS_DIR / map_name).resolve()
+    if map_path.parent != MAPS_DIR or map_path.suffix.lower() != ".png" or not map_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Map '{map_name}' not found.")
+    return FileResponse(map_path, media_type="image/png")
+
 @app.get("/plan")
 def compute_plan(
     map_name: str = "smile.png",
