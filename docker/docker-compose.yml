@@ -1,0 +1,95 @@
+name: rrt-motion-planner
+
+# Desktop GUI services (X11 forwarding):
+#   Before running, allow container access to the host X server:
+#     xhost +local:docker
+#
+# Build order (webvis layer depends on the base image):
+#   docker compose -f docker/docker-compose.yml build rrt-planner
+#   docker compose -f docker/docker-compose.yml build rrt-webvis
+#
+# Or build everything at once:
+#   docker compose -f docker/docker-compose.yml build rrt-planner rrt-webvis
+#
+# Run main.py (desktop, live step-by-step):
+#   docker compose -f docker/docker-compose.yml --profile desktop up
+#
+# Run plan_then_draw.py (RRT full run then edge-by-edge replay):
+#   docker compose -f docker/docker-compose.yml --profile plan-then-draw up
+#
+# Run the PixiJS web visualizer (opens at http://localhost:8000):
+#   docker compose -f docker/docker-compose.yml --profile webvis up
+#
+# Code changes in python-scripts/ and webvis/ are reflected immediately
+# because both directories are mounted as volumes (no rebuild needed).
+
+# ── Shared config for desktop GUI services ─────────────────────────────────
+x-base: &base
+  build:
+    # Build context is the project root so the Dockerfile can access python-scripts/
+    context: ..
+    dockerfile: docker/Dockerfile
+  image: rrt-motion-planner:latest
+  environment:
+    DISPLAY: ${DISPLAY:-:0}
+    # Force Mesa software renderer — avoids DRI/DRM device access errors in Docker.
+    # Set to 0 and add "devices: - /dev/dri:/dev/dri" below for hardware GPU rendering.
+    LIBGL_ALWAYS_SOFTWARE: "1"
+  volumes:
+    # X11 socket for GUI forwarding
+    - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    # Mount source code so edits are picked up without rebuilding
+    - ../python-scripts:/workspace
+  working_dir: /workspace
+  stdin_open: true
+  tty: true
+
+# ── Services ───────────────────────────────────────────────────────────────
+services:
+
+  # ── Desktop: live step-by-step ────────────────────────────────────────
+  rrt-planner:
+    <<: *base
+    container_name: rrt-motion-planner
+    profiles: [desktop]
+    command:
+      - python3
+      - main.py
+      - smile.png
+      - "15"
+      - "10"
+      - "50000"
+      - "40"
+      - "40"
+      - "700"
+      - "550"
+
+  # ── Desktop: full plan then edge-by-edge replay ────────────────────────
+  plan-then-draw:
+    <<: *base
+    container_name: rrt-plan-then-draw
+    profiles: [plan-then-draw]
+    command:
+      - python3
+      - plan_then_draw.py
+
+  # ── Web visualizer: PixiJS in the browser ─────────────────────────────
+  rrt-webvis:
+    build:
+      # webvis layer extends rrt-motion-planner:latest — build that first
+      context: ..
+      dockerfile: docker/Dockerfile.webvis
+    image: rrt-motion-planner-webvis:latest
+    container_name: rrt-webvis
+    profiles: [webvis]
+    environment:
+      # Path to python-scripts inside the container (maps + planner modules)
+      MAPS_DIR: /workspace
+    volumes:
+      # Planner source and map PNG files
+      - ../python-scripts:/workspace
+      # Web server and static frontend (--reload picks up changes automatically)
+      - ../webvis:/app
+    working_dir: /app
+    ports:
+      - "8000:8000"
