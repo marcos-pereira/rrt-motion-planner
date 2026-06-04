@@ -36,13 +36,13 @@ def get_map(map_name: str):
 @app.get("/plan")
 def compute_plan(
     map_name: str = "smile.png",
-    steer_delta: float = 15.0,
-    goal_radius: int = 10,
-    num_nodes: int = 20000,
-    x0: int = 40,
-    y0: int = 40,
-    xg: int = 700,
-    yg: int = 550,
+    steer_delta: float = Query(15.0, ge=1, le=500),
+    goal_radius: int = Query(10, ge=1, le=500),
+    num_nodes: int = Query(20000, ge=100, le=200000),
+    x0: int = Query(40, ge=0),
+    y0: int = Query(40, ge=0),
+    xg: int = Query(700, ge=0),
+    yg: int = Query(550, ge=0),
 ):
     """Run the RRT planner and return edges in insertion order plus the path."""
     map_path = (MAPS_DIR / map_name).resolve()
