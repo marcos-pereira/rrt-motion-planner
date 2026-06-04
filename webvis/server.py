@@ -89,7 +89,5 @@ def compute_plan(
     }
 
 
-# Serve map PNG images — must be declared before the catch-all static mount
-app.mount("/maps", StaticFiles(directory=str(MAPS_DIR)), name="maps")
 # Serve the PixiJS frontend
 app.mount("/", StaticFiles(directory=str(Path(__file__).parent / "static"), html=True), name="static")
