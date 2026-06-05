@@ -307,38 +307,25 @@ class PlanDrawer(pyglet.window.Window):
         """
         
         self.clear()
+        
+        # Clear last tree
+        self.lines_ = list()
                         
         plan_found, x_nearest, x_new = planner.run_step()
         
-        for edge in planner.remove_this_edges_:
-            self.lines_rrtstar_.pop(edge)
-            
-        for edge in planner.rewired_edges_:
-            self.lines_rrtstar_[edge] = \
-            Line(edge[0][0], 
-                self.map_height_-edge[0][1], 
-                edge[1][0], 
-                self.map_height_-edge[1][1], 
-                self.batch_, 
-                self.foreground_)
+        # Draw tree
+        tree_node = planner.get_tree_nodes()
         
-        self.lines_rrtstar_[(planner.x_min_, x_new)] = \
-            Line(planner.x_min_[0], 
-                self.map_height_-planner.x_min_[1], 
-                x_new[0], 
-                self.map_height_-x_new[1], 
-                self.batch_, 
-                self.foreground_)
-            
-        # plan_graph = planner.get_graph()
-        # for edge in plan_graph[1]:
-        #     self.lines_.add(Line(edge[0][0], 
-        #                     self.map_height_-edge[0][1], 
-        #                     edge[1][0], 
-        #                     self.map_height_-edge[1][1], 
-        #                     self.batch_, 
-        #                     self.foreground_))
-
+        # Draw edges for ALL nodes in the tree
+        for node in tree_node:
+            parent = node.get_parent()
+            if parent is not None:
+                self.lines_.append(Line(parent.get_node_coordinates()[0], 
+                                        self.map_height_ - parent.get_node_coordinates()[1], 
+                                        node.get_node_coordinates()[0], 
+                                        self.map_height_ - node.get_node_coordinates()[1], 
+                                        self.batch_, 
+                                        self.foreground_))
         
         if plan_found:
             self.path_line_ = set()
