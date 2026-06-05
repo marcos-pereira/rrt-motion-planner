@@ -325,7 +325,9 @@ class RRTPlanner(ABC):
         # # We want to return only the nearest node, which is the first element of the tuple.
         
         tree = cKDTree(self.nodes_list_)
-        _, nearest_node_index = tree.query(current_node, k=1)
+        # k = 1 means we want to find the single nearest neighbor
+        # workers=-1 means to use all available CPU cores for the query
+        _, nearest_node_index = tree.query(current_node, k=1, workers=-1)
         nearest_node = self.nodes_list_[nearest_node_index]
         
         return nearest_node
