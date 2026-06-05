@@ -9,6 +9,7 @@
 # marcos-pereira (https://github.com/marcos-pereira)
 
 from RRTPlanner import RRTPlanner
+from TreeNode import TreeNode
 
 class RRT(RRTPlanner):
     def __init__(self, 
@@ -78,11 +79,10 @@ class RRT(RRTPlanner):
 
         ## x_nearest will be the parent node of x_new
         self.node_to_parent_[x_new] = x_nearest
-
+        
         self.node_to_cost_[x_new] = self.cost_to_node(x_new)            
 
-        ## Add x_new to graph
-        self.insert_node_to_tree(x_new, 0)
+        ## Add x_new to graph nodes
         self.nodes_list_.append(x_new)
         
         ## Increment node count
@@ -92,6 +92,12 @@ class RRT(RRTPlanner):
                     
         # Add node to tree builder to keep track of the neighbors of each node in the graph
         self.tree_builder_.add_node(x_nearest, x_new)
+        
+        # Store the new node in the tree node map to maintain the parent pointer tree, 
+        # where each node has a pointer to its parent node.
+        tree_parent = self.node_to_tree_node_[x_nearest]
+        self.tree_nodes_.append(TreeNode(x_new, self.node_to_cost_[x_new], tree_parent))
+        self.node_to_tree_node_[x_new] = self.tree_nodes_[-1]
                 
         path_found = self.path_to_goal_found(x_new, self.x_goal_, self.goal_radius_)
         

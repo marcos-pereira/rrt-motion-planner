@@ -12,8 +12,10 @@ from abc import ABC, abstractmethod
 import numpy as np
 from random_config import random
 from rtree import index
+from scipy.spatial import cKDTree
 
 from TreeBuilder import TreeBuilder
+from TreeNode import TreeNode
 
 class RRTPlanner(ABC):
     def __init__(self,
@@ -71,13 +73,22 @@ class RRTPlanner(ABC):
 
         ## Initalize graph
         self.rrt_graph_ = (self.nodes_, self.edges_)
-        
-        x_init_id = 0
-        self.insert_node_to_tree(x_init, x_init_id)           
-        
+                
         # Initialize tree builder to maintain the connectivity between 
         # nodes and edges in the graph        
         self.tree_builder_ = TreeBuilder(x_init)
+        
+        # Tree node map to maintain the parent pointer tree, 
+        # where each node has a pointer to its parent node.
+        self.tree_nodes_ = list[TreeNode]()
+        
+        # Add the initial node to the tree node map
+        self.tree_nodes_.append(TreeNode(x_init, 0, None))
+        
+        # Add the initial node to the tree node map to maintain the parent pointer tree, 
+        # where each node has a pointer to its parent node.
+        self.node_to_tree_node_ = dict()
+        self.node_to_tree_node_[x_init] = self.tree_nodes_[-1]
         
         ## Used to detect collisions with obstacles
         self.ones_in_drawing_ = np.where(self.scene_map_ == 1)
@@ -297,17 +308,26 @@ class RRTPlanner(ABC):
             tuple: the nearest node to current_node.
         """
         
-        # Number of nearest neighbors to query
-        num_nearest_neighbors = 1
+        # # Number of nearest neighbors to query
+        # num_nearest_neighbors = 1
         
-        # The raw object is the node itself as it was inserted in the rtree
-        return_raw_object_from_rtree = "raw"
+        # # The raw object is the node itself as it was inserted in the rtree
+        # return_raw_object_from_rtree = "raw"
         
-        # Get the nearest node (the first element of the rrt_graph is the node tree)
-        nearest_node_pair = rrt_graph[0].nearest(current_node, num_results=num_nearest_neighbors, objects=return_raw_object_from_rtree)
-        nearest_node_pair_as_list = list(nearest_node_pair)
+        # # Get the nearest node (the first element of the rrt_graph is the node tree)
+        # nearest_node_pair = rrt_graph[0].nearest(current_node, num_results=num_nearest_neighbors, objects=return_raw_object_from_rtree)
+        # nearest_node_pair_as_list = list(nearest_node_pair)
+        # # nearest_node_pair_as_list is a list of tuples of the form (node, node_id), 
+        # # where node is the nearest node and node_id is the id of the nearest node in the rtree. 
+        # # We want to return only the nearest node, which is the first element of the tuple.
         
-        return nearest_node_pair_as_list[0]
+        tree = cKDTree(self.nodes_list_)
+        # k = 1 means we want to find the single nearest neighbor
+        # workers=-1 means to use all available CPU cores for the query
+        _, nearest_node_index = tree.query(current_node, k=1, workers=-1)
+        nearest_node = self.nodes_list_[nearest_node_index]
+        
+        return nearest_node
 
     def configuration_in_free_space(self) -> tuple[int, int]:
         """Get a configuration in the free configuration space.
@@ -387,3 +407,9 @@ class RRTPlanner(ABC):
         """
         
         return self.rrt_graph_
+    
+    def get_tree_nodes(self) -> list[TreeNode]:
+        """Return the tree nodes.
+        """
+        
+        return self.tree_nodes_

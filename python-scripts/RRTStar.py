@@ -13,7 +13,7 @@ import copy
 import numpy as np
 from RRTPlanner import RRTPlanner
 from sklearn.neighbors import NearestNeighbors
-
+from TreeNode import TreeNode
 
 class RRTStar(RRTPlanner):
     def __init__(self,
@@ -62,12 +62,6 @@ class RRTStar(RRTPlanner):
         ## Store last node in goal
         self.last_goal_node_ = None
         
-        # Remove this edges
-        self.remove_this_edges_ = list()
-        
-        # Rewire this edges
-        self.rewired_edges_ = list()
-        
         # Node with minimum cost in tree to connect new node to
         self.x_min_ = tuple()
         
@@ -113,8 +107,7 @@ class RRTStar(RRTPlanner):
         # Get nearest neighbors to x_new 
         nearest_neighbors = self.get_nearest_neighbors(x_new)
         
-        ## Add x_new to graph
-        self.insert_node_to_tree(x_new)
+        ## Add x_new to graph nodes
         self.nodes_list_.append(x_new)
         
         # Point with minimum cost between x_new and x_nearest
@@ -124,28 +117,24 @@ class RRTStar(RRTPlanner):
         ## Increment node count
         self.node_count_ += 1
         
-        # Add edge between x_min and x_new
-        self.add_edge(x_min, x_new)
-        
         # x_min will be the parent node of x_new
         self.node_to_parent_[x_new] = x_min
         self.node_to_cost_[x_new] = self.node_to_cost_[x_min] + self.nodes_distance(x_new, x_min)
+                
+        # Store the new node in the tree node map to maintain the parent pointer tree,
+        # where each node has a pointer to its parent node.
+        tree_parent = self.node_to_tree_node_[x_min]
+        self.tree_nodes_.append(TreeNode(x_new, self.node_to_cost_[x_new], tree_parent))
+        self.node_to_tree_node_[x_new] = self.tree_nodes_[-1]
+        
+        # Update tree node children for x_min -> x_new
+        new_node = self.node_to_tree_node_[x_new]
+        tree_parent.add_child(new_node)
         
         # Rewire tree after adding new node
-        self.rewire_tree(x_new, nearest_neighbors)
+        self.rewire_tree(self.tree_nodes_[-1], nearest_neighbors)
         
         path_found = self.path_to_goal_found(x_new, self.x_goal_, self.goal_radius_)
-        
-        # if self.last_goal_node_ is not None:
-        #     cost_to_last_goal = self.node_to_cost_[self.last_goal_node_]
-            
-        #     if cost_to_last_goal < self.last_cost_to_goal_:
-        #         print(f"Lower cost: {cost_to_last_goal}")
-        #         x_reached = self.last_goal_node_
-        #         self.last_path_found_ = self.path(x_reached)
-        #         self.last_goal_node_ = x_reached            
-        #         self.last_cost_to_goal_ = self.node_to_cost_[x_reached]
-        #         path_found = True
         
         lower_cost_path_found = \
             self.node_to_cost_[x_new] < self.last_cost_to_goal_
@@ -159,23 +148,6 @@ class RRTStar(RRTPlanner):
             self.last_path_found_ = self.path(x_new)
             self.last_goal_node_ = x_new      
             self.last_cost_to_goal_ = self.node_to_cost_[x_new]
-        
-        
-        # if path_found == True:
-        #     print("Path found.")
-                        
-        #     lower_cost_path_found = self.cost_to_node(x_new) < self.last_cost_to_goal_
-            
-        #     self.last_cost_to_goal_ = self.cost_to_node(x_new)
-        #     self.last_goal_found_ = x_new
-            
-        #     ## At least one path was found
-        #     self.one_path_found_ = True
-                    
-        #     if lower_cost_path_found == True:
-        #         self.last_cost_to_goal_ = self.cost_to_node(x_new)
-        #         print("Lower cost found.")
-        #         print(f"Cost: {self.last_cost_to_goal_}")
         
         return path_found, x_nearest, x_new
     
@@ -280,34 +252,41 @@ class RRTStar(RRTPlanner):
         
         return min_cost_node, cost_min
     
-    def rewire_tree(self, x_new, nearest_neighbors_set):
-        """ Rewire tree connecting nodes in tree to x_new if cost
-        is lower than current cost. Remove the old edges and add new ones.
+    def rewire_tree(self, new_node : TreeNode, nearest_neighbors_set):
+        """ Rewire tree connecting neighbors to x_new if cost is lower than current cost.
 
         Args:
-            x_new (tuple): the new node to in tree.
+            new_node (TreeNode): the new node added to the tree.
             nearest_neighbors_set (set of tuples): the set of nearest neighbors to new node.
         """
-        self.remove_this_edges_ = list()
-        self.rewired_edges_ = list()
-        for node in nearest_neighbors_set:
-            x_parent = None
-            if self.nodes_closer(x_new, node) == True:
-                x_parent = copy.deepcopy(self.node_to_parent_[node])
-                # x_parent = self.node_to_parent_[node]
-                                
-            ## Delete edge between node and its parent
-            ## and rewire it with x_new since the cost is smaller
-            if x_parent is not None:
-                # Remove edge
-                self.rrt_graph_[1].remove((x_parent, node))
-                self.remove_this_edges_.append((x_parent, node))
-                
-                self.add_edge(x_new, node)
-                self.rewired_edges_.append((x_new, node))
-                self.node_to_parent_[node] = x_new
-                self.node_to_cost_[node] = self.node_to_cost_[x_new] + self.nodes_distance(x_new, node)
+        # Get the newly added node coordinates for easier access
+        new_node_coords = new_node.get_node_coordinates()
 
+        # Check if each neighbor can get a lower cost by connecting to x_new
+        for near_node in nearest_neighbors_set:
+            node_to_rewire = self.node_to_tree_node_[near_node]
+            node_to_rewire_coords = node_to_rewire.get_node_coordinates()
+            node_to_rewire_parent = None
+            
+            # Check if near_node can get lower cost by connecting to new_node
+            if self.nodes_closer(new_node_coords, near_node) == True:
+                node_to_rewire_parent = node_to_rewire.get_parent()
+                
+                # Remove near_node from its current parent children list
+                node_to_rewire_parent.remove_child(node_to_rewire)
+                
+                # Update parent and cost of near_node to connect to new_node
+                self.node_to_parent_[near_node] = new_node_coords
+                self.node_to_cost_[near_node] = self.cost_to_new_node(new_node_coords, node_to_rewire_coords)
+                
+                # Update tree node parent and cost for near_node to connect to new_node
+                new_node.add_child(node_to_rewire)
+                node_to_rewire.set_parent(new_node)
+                
+                # Update cost of new_node to reflect the new connection
+                new_node_cost = self.node_to_cost_[new_node_coords]
+                new_node.set_cost(new_node_cost)
+                
     def nodes_closer(self, new_node, tree_node):
         """ Return if new_node appended to tree_node has lower cost than the cost from tree_node itself.
 
