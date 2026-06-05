@@ -55,7 +55,8 @@ Each service has its own profile so only the requested one starts — profiles n
 |---------|---------|------------|-------------|
 | `desktop` | `rrt-planner` | `main.py` | RRT live step-by-step drawing, then RRT* continuous optimization |
 | `plan-then-draw` | `plan-then-draw` | `plan_then_draw.py` | RRT runs fully first, then replays the tree edge-by-edge |
-| `webvis` | `rrt-webvis` | `server.py` (uvicorn) | PixiJS web visualizer at http://localhost:8000 |
+| `webvis` | `rrt-webvis` | `server.py` (uvicorn) | PixiJS web visualizer — RRT at http://localhost:8000 |
+| `webvis-rrtstar` | `rrt-webvis` | `server.py` (uvicorn) | Same server as `webvis` — RRT* at http://localhost:8000/rrtstar.html |
 
 ## Examples
 
@@ -72,8 +73,12 @@ docker compose -f docker/docker-compose.yml --profile plan-then-draw up
 docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner \
   python3 main.py maze1.png 15 10 50000 40 40 700 550
 
-# Web visualizer
+# Web visualizer — RRT (open http://localhost:8000)
 docker compose -f docker/docker-compose.yml --profile webvis up
+
+# Web visualizer — RRT* (open http://localhost:8000/rrtstar.html)
+# Uses the same server as the webvis profile; only one can run at a time.
+docker compose -f docker/docker-compose.yml --profile webvis-rrtstar up
 
 # Shell inside the base container
 docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner bash
