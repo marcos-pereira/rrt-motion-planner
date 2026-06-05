@@ -73,10 +73,7 @@ class RRTPlanner(ABC):
 
         ## Initalize graph
         self.rrt_graph_ = (self.nodes_, self.edges_)
-        
-        x_init_id = 0
-        self.insert_node_to_tree(x_init, x_init_id)           
-        
+                
         # Initialize tree builder to maintain the connectivity between 
         # nodes and edges in the graph        
         self.tree_builder_ = TreeBuilder(x_init)
