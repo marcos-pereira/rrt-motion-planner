@@ -16,6 +16,10 @@ class TreeNode:
         # goal node to the root node.
         self.parent_ = parent_node
         
+        # List of children nodes. This will be used in RRT* planner to 
+        # efficiently propagate cost updates during rewiring.
+        self.children_ = []
+        
     def get_parent(self):
         """ Returns the parent node of this tree node. """
         return self.parent_
@@ -27,7 +31,32 @@ class TreeNode:
     def get_cost(self) -> float:
         """ Returns the cost of this tree node. """
         return self.cost_
+    
+    def get_children(self):
+        """ Returns the children nodes of this tree node. """
+        return self.children_
         
+    def set_parent(self, parent_node):
+        """ Sets the parent node of this tree node. """
+        self.parent_ = parent_node
+        
+    def set_children(self, children_nodes):
+        """ Sets the children nodes of this tree node. """
+        self.children_ = children_nodes
+        
+    def add_child(self, child_node):
+        """ Adds a child node to this tree node. """
+        self.children_.append(child_node)
+        
+    def remove_child(self, child_node):
+        """ Removes a child node from this tree node. """
+        self.children_.remove(child_node)
+        
+    def set_cost(self, cost: float):
+        """ Sets the cost of this tree node. """
+        self.cost_ = cost
+        
+    
         
         
     
