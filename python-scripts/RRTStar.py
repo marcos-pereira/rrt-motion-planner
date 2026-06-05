@@ -287,6 +287,29 @@ class RRTStar(RRTPlanner):
                 new_node_cost = self.node_to_cost_[new_node_coords]
                 new_node.set_cost(new_node_cost)
                 
+                # Update cost of child nodes of near_node to reflect the new connection
+                self.update_child_costs(node_to_rewire)
+                
+    def update_child_costs(self, node_to_rewire):
+        """ Update the cost of the child nodes of the rewired node to reflect the new connection.
+
+        Args:
+            node_to_rewire (TreeNode): the node that was rewired to connect to new_node.
+        """
+        # Get the child nodes of the rewired node
+        child_nodes = node_to_rewire.get_children()
+        
+        # Recursively update the cost of the child nodes
+        for child_node in child_nodes:
+            child_node_coords = child_node.get_node_coordinates()
+            node_to_rewire_coords = node_to_rewire.get_node_coordinates()
+            
+            # Update cost of child node to reflect the new connection
+            self.node_to_cost_[child_node_coords] = self.cost_to_new_node(node_to_rewire_coords, child_node_coords)
+            
+            # Recursively update the cost of the child nodes of the child node
+            self.update_child_costs(child_node)
+                
     def nodes_closer(self, new_node, tree_node):
         """ Return if new_node appended to tree_node has lower cost than the cost from tree_node itself.
 
