@@ -181,7 +181,7 @@ class PlanDrawer(pyglet.window.Window):
             # Facilitates the dispatch of events
             self.flip()
         
-    def draw_and_plan(self, planner):
+    def draw_and_plan(self, planner : RRTPlanner):
         """ Returns True if plan still not found.
 
         Args:
@@ -198,13 +198,23 @@ class PlanDrawer(pyglet.window.Window):
         
         plan_found, x_nearest, x_new = planner.run_step()
         
-        self.lines_.append(Line(x_nearest[0], 
-                            self.map_height_-x_nearest[1], 
-                            x_new[0], 
-                            self.map_height_-x_new[1], 
-                            self.batch_, 
-                            self.foreground_))
-
+        # Draw tree
+        tree_node = planner.get_tree_nodes()
+        
+        # Run the tree node map in reverse order to draw the edges from the root node to the new node added in the tree,
+        # which is the opposite order of how the nodes were added to the tree node map, 
+        # since the tree node map is built in the order of how the nodes were added to the tree, 
+        # where each node has a pointer to its parent node.
+        current_node = tree_node[-1]
+        while current_node.get_parent() is not None:
+            parent_node = current_node.get_parent()
+            self.lines_.append(Line(parent_node.get_node_coordinates()[0], 
+                                    self.map_height_-parent_node.get_node_coordinates()[1], 
+                                    current_node.get_node_coordinates()[0], 
+                                    self.map_height_-current_node.get_node_coordinates()[1], 
+                                    self.batch_, 
+                                    self.foreground_))
+            current_node = parent_node
         
         if plan_found:
             path, path_cost = planner.path(x_new)
