@@ -82,8 +82,7 @@ class RRT(RRTPlanner):
         
         self.node_to_cost_[x_new] = self.cost_to_node(x_new)            
 
-        ## Add x_new to graph
-        self.insert_node_to_tree(x_new, 0)
+        ## Add x_new to graph nodes
         self.nodes_list_.append(x_new)
         
         ## Increment node count
