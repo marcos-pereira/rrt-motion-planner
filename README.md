@@ -7,8 +7,12 @@ Implementations of RRT and RRT* sampling-based motion planners in Python, with b
 ```bash
 # 1 — Build images (webvis layer depends on the base image)
 docker compose -f docker/docker-compose.yml build rrt-planner rrt-webvis
-# 2 — Run the web visualizer, then open http://localhost:8000
+
+# 2a — Run the RRT web visualizer, then open http://localhost:8000
 docker compose -f docker/docker-compose.yml --profile webvis up
+
+# 2b — Run the RRT* web visualizer, then open http://localhost:8000/rrtstar.html
+docker compose -f docker/docker-compose.yml --profile webvis-rrtstar up
 ```
 
 ---
@@ -55,14 +59,16 @@ A window with the loaded map opens first — close it to continue. A black pygle
 
 ## Running the web visualizer
 
-The web visualizer runs RRT in the background and animates the tree growing edge-by-edge in a browser using PixiJS.
+The web visualizer runs in a browser using PixiJS. A single server serves both algorithms.
 
 ```bash
 # From the project root
 uvicorn webvis.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Then open **http://localhost:8000** in a browser. Select a map, set the parameters, adjust the animation speed, and click **Run RRT**.
+**RRT** — open **http://localhost:8000**. Select a map, set the parameters, adjust the animation speed, and click **Run RRT**. The full tree is computed first, then animated edge-by-edge.
+
+**RRT*** — open **http://localhost:8000/rrtstar.html**. Planning and drawing are interleaved: the tree is redrawn from scratch on every update because rewiring changes parent pointers. Use the **Steps per update** slider to balance responsiveness against rendering cost, and click **Stop** at any time.
 
 ---
 
@@ -84,8 +90,11 @@ docker compose -f docker/docker-compose.yml --profile desktop up
 # Plan-then-draw mode
 docker compose -f docker/docker-compose.yml --profile plan-then-draw up
 
-# Web visualizer — open http://localhost:8000
+# Web visualizer (RRT) — open http://localhost:8000
 docker compose -f docker/docker-compose.yml --profile webvis up
+
+# Web visualizer (RRT*) — open http://localhost:8000/rrtstar.html
+docker compose -f docker/docker-compose.yml --profile webvis-rrtstar up
 ```
 
 ---
