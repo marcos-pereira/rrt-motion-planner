@@ -160,6 +160,31 @@ class RRTStar(RRTPlanner):
             if self.max_number_nodes() == True:
                 print(f"Maximum number of {self.max_num_nodes_} reached")
                 break
+    
+    def run_test(self) -> tuple[list[tuple[int, int]], float, bool]:
+        """ Run the planner on the loaded map with no visualization until a path to goal is found or until the max_number_nodes is reached.
+
+        Returns:
+            list: the path from x_init to x_goal.
+            float: the cost of the path from x_init to x_goal.
+            bool: true if a path to goal was found, false otherwise.
+        """
+        while True:
+            path_found, x_neaerst, x_new = self.plan_found()
+                        
+            if self.max_number_nodes() == True:
+                print(f"Maximum number of {self.max_num_nodes_} reached")
+                break
+            
+            if path_found == True:
+                print("Path to goal found!")
+                path, path_cost = self.path(x_new)
+                # Log number of nodes in tree and path cost
+                print(f"Number of nodes in tree: {self.node_count_}")
+                print(f"Path cost: {path_cost}")
+                break
+        
+        return path, path_cost, path_found
                 
     def run_step(self):
         """Run only one step of the planner.
