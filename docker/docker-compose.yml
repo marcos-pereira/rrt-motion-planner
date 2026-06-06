@@ -74,6 +74,8 @@ services:
       - plan_then_draw.py
 
   # ── Web visualizer: PixiJS in the browser ─────────────────────────────
+  # Both webvis and webvis-rrtstar profiles start this same service.
+  # Navigate to http://localhost:8000 for RRT and /rrtstar.html for RRT*.
   rrt-webvis:
     build:
       # webvis layer extends rrt-motion-planner:latest — build that first
@@ -81,7 +83,7 @@ services:
       dockerfile: docker/Dockerfile.webvis
     image: rrt-motion-planner-webvis:latest
     container_name: rrt-webvis
-    profiles: [webvis]
+    profiles: [webvis, webvis-rrtstar]
     environment:
       # Path to python-scripts inside the container (maps + planner modules)
       MAPS_DIR: /workspace

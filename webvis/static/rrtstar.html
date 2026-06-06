@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RRT Visualizer</title>
+    <title>RRT* Visualizer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,6 +29,25 @@
             gap: 14px;
             overflow-y: auto;
         }
+
+        .algo-nav {
+            display: flex;
+            gap: 6px;
+        }
+        .algo-nav a {
+            font-size: 0.72rem;
+            color: #8b949e;
+            text-decoration: none;
+            padding: 3px 8px;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+        }
+        .algo-nav a.active {
+            color: #f0f6fc;
+            border-color: #c400b7;
+            background: #1c1023;
+        }
+        .algo-nav a:hover:not(.active) { border-color: #8b949e; }
 
         #sidebar h1 {
             font-size: 1rem;
@@ -63,9 +82,7 @@
             width: 100%;
             outline: none;
         }
-        select:focus, input[type="number"]:focus {
-            border-color: #58a6ff;
-        }
+        select:focus, input[type="number"]:focus { border-color: #58a6ff; }
 
         .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
@@ -75,7 +92,10 @@
             accent-color: #c400b7;
         }
 
+        .btn-row { display: flex; gap: 8px; }
+
         #run-btn {
+            flex: 1;
             background: #c400b7;
             color: #fff;
             border: none;
@@ -89,6 +109,20 @@
         }
         #run-btn:hover:not(:disabled) { background: #a3009a; }
         #run-btn:disabled { background: #30363d; color: #8b949e; cursor: not-allowed; }
+
+        #stop-btn {
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        #stop-btn:hover:not(:disabled) { background: #30363d; }
+        #stop-btn:disabled { color: #484f58; cursor: not-allowed; }
 
         #status {
             font-size: 0.75rem;
@@ -106,26 +140,6 @@
         .swatch-line { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
         .swatch-line.thick { height: 5px; }
         .swatch-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-
-        /* ── Algo nav ──────────────────────────────────────────── */
-        .algo-nav {
-            display: flex;
-            gap: 6px;
-        }
-        .algo-nav a {
-            font-size: 0.72rem;
-            color: #8b949e;
-            text-decoration: none;
-            padding: 3px 8px;
-            border: 1px solid #30363d;
-            border-radius: 4px;
-        }
-        .algo-nav a.active {
-            color: #f0f6fc;
-            border-color: #c400b7;
-            background: #1c1023;
-        }
-        .algo-nav a:hover:not(.active) { border-color: #8b949e; }
 
         /* ── Canvas area ───────────────────────────────────────── */
         #canvas-container {
@@ -152,11 +166,11 @@
 
 <aside id="sidebar">
     <div class="algo-nav">
-        <a href="/" class="active">RRT</a>
-        <a href="/rrtstar.html">RRT*</a>
+        <a href="/">RRT</a>
+        <a href="/rrtstar.html" class="active">RRT*</a>
     </div>
 
-    <h1>🌲 RRT Visualizer</h1>
+    <h1>⭐ RRT* Visualizer</h1>
 
     <div class="field">
         <span class="section-label">Map</span>
@@ -207,14 +221,28 @@
         <input type="number" id="num-nodes" value="20000" min="100" step="1000">
     </div>
 
+    <div class="row">
+        <div class="field">
+            <label>γ_rrt*</label>
+            <input type="number" id="gamma-rrt" value="1000" min="1">
+        </div>
+        <div class="field">
+            <label>η (px)</label>
+            <input type="number" id="eta" value="20" min="1">
+        </div>
+    </div>
+
     <hr>
 
     <div class="field">
-        <label>Speed — <span id="speed-label">50 edges / frame</span></label>
-        <input type="range" id="speed" min="1" max="500" value="50">
+        <label>Steps per update — <span id="batch-label">100 steps</span></label>
+        <input type="range" id="batch-size" min="10" max="1000" value="100">
     </div>
 
-    <button id="run-btn">▶ Run RRT</button>
+    <div class="btn-row">
+        <button id="run-btn">▶ Run RRT*</button>
+        <button id="stop-btn" disabled>■ Stop</button>
+    </div>
 
     <div id="status">Ready — select a map and click Run.</div>
 
@@ -223,11 +251,11 @@
     <div class="legend">
         <div class="legend-item">
             <div class="swatch-line" style="background:#C400B7;"></div>
-            Tree edges
+            Tree edges (redrawn on every update)
         </div>
         <div class="legend-item">
             <div class="swatch-line thick" style="background:#0B27DB;"></div>
-            Path to goal
+            Best path to goal
         </div>
         <div class="legend-item">
             <div class="swatch-dot" style="background:#FFCF58;"></div>
@@ -242,11 +270,11 @@
 
 <main id="canvas-container">
     <div id="placeholder">
-        <div class="icon">🌲</div>
-        <p>Run the planner to see the tree grow here.</p>
+        <div class="icon">⭐</div>
+        <p>Run the planner to see the tree optimize here.</p>
     </div>
 </main>
 
-<script src="app.js"></script>
+<script src="rrtstar.js"></script>
 </body>
 </html>

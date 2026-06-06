@@ -13,6 +13,8 @@ from pyglet import shapes, image
 import numpy as np
 
 from TreeBuilder import TreeBuilder
+from RRTPlanner import RRTPlanner
+from RRTStar import RRTStar
 
 class Line():
     def __init__(self, x1, y1, x2, y2, batch, group):
@@ -179,7 +181,7 @@ class PlanDrawer(pyglet.window.Window):
             # Facilitates the dispatch of events
             self.flip()
         
-    def draw_and_plan(self, planner):
+    def draw_and_plan(self, planner : RRTPlanner):
         """ Returns True if plan still not found.
 
         Args:
@@ -196,13 +198,23 @@ class PlanDrawer(pyglet.window.Window):
         
         plan_found, x_nearest, x_new = planner.run_step()
         
-        self.lines_.append(Line(x_nearest[0], 
-                            self.map_height_-x_nearest[1], 
-                            x_new[0], 
-                            self.map_height_-x_new[1], 
-                            self.batch_, 
-                            self.foreground_))
-
+        # Draw tree
+        tree_node = planner.get_tree_nodes()
+        
+        # Run the tree node map in reverse order to draw the edges from the root node to the new node added in the tree,
+        # which is the opposite order of how the nodes were added to the tree node map, 
+        # since the tree node map is built in the order of how the nodes were added to the tree, 
+        # where each node has a pointer to its parent node.
+        current_node = tree_node[-1]
+        while current_node.get_parent() is not None:
+            parent_node = current_node.get_parent()
+            self.lines_.append(Line(parent_node.get_node_coordinates()[0], 
+                                    self.map_height_-parent_node.get_node_coordinates()[1], 
+                                    current_node.get_node_coordinates()[0], 
+                                    self.map_height_-current_node.get_node_coordinates()[1], 
+                                    self.batch_, 
+                                    self.foreground_))
+            current_node = parent_node
         
         if plan_found:
             path, path_cost = planner.path(x_new)
@@ -284,49 +296,36 @@ class PlanDrawer(pyglet.window.Window):
             
         return
 
-    def draw_plan_rrtstar(self, planner):
+    def draw_plan_rrtstar(self, planner : RRTStar):
         """ Returns True if plan still not found.
 
         Args:
-            planner (RRTPlanner): The RRT planner.
+            planner (RRTStar): The RRT* planner.
 
         Returns:
             bool: True if plan still not found.
         """
         
         self.clear()
+        
+        # Clear last tree
+        self.lines_ = list()
                         
         plan_found, x_nearest, x_new = planner.run_step()
         
-        for edge in planner.remove_this_edges_:
-            self.lines_rrtstar_.pop(edge)
-            
-        for edge in planner.rewired_edges_:
-            self.lines_rrtstar_[edge] = \
-            Line(edge[0][0], 
-                self.map_height_-edge[0][1], 
-                edge[1][0], 
-                self.map_height_-edge[1][1], 
-                self.batch_, 
-                self.foreground_)
+        # Draw tree
+        tree_node = planner.get_tree_nodes()
         
-        self.lines_rrtstar_[(planner.x_min_, x_new)] = \
-            Line(planner.x_min_[0], 
-                self.map_height_-planner.x_min_[1], 
-                x_new[0], 
-                self.map_height_-x_new[1], 
-                self.batch_, 
-                self.foreground_)
-            
-        # plan_graph = planner.get_graph()
-        # for edge in plan_graph[1]:
-        #     self.lines_.add(Line(edge[0][0], 
-        #                     self.map_height_-edge[0][1], 
-        #                     edge[1][0], 
-        #                     self.map_height_-edge[1][1], 
-        #                     self.batch_, 
-        #                     self.foreground_))
-
+        # Draw edges for ALL nodes in the tree
+        for node in tree_node:
+            parent = node.get_parent()
+            if parent is not None:
+                self.lines_.append(Line(parent.get_node_coordinates()[0], 
+                                        self.map_height_ - parent.get_node_coordinates()[1], 
+                                        node.get_node_coordinates()[0], 
+                                        self.map_height_ - node.get_node_coordinates()[1], 
+                                        self.batch_, 
+                                        self.foreground_))
         
         if plan_found:
             self.path_line_ = set()

@@ -35,7 +35,10 @@ def main():
                     scene_map,
                     num_nodes)
     
-    rrt_planner.run()
+    _, _, path_found = rrt_planner.run_test()
+    print(f'RRT found a path: {path_found}')
+    
+    assert path_found, 'RRT should have found a path in this test case, but it did not.'
 
     gamma_rrt = 1000
     eta_rrt = 20
@@ -50,7 +53,12 @@ def main():
                     scene_map,
                     num_nodes)
     
-    rrt_planner.run()
+    _, _, path_found = rrt_planner.run_test()
+    print(f'RRTStar found a path: {path_found}')
+    
+    assert path_found, 'RRTStar should have found a path in this test case, but it did not.'
+
+    
 
 
 if __name__ == '__main__':
