@@ -17,6 +17,14 @@ docker compose -f docker/docker-compose.yml --profile webvis-rrtstar up
 
 ---
 
+## Quick view of the web visualizer
+
+![webvisualizer_rrt](images/rrt.gif)
+
+A full video of the Desktop visualizer is available [here](https://youtu.be/lUQy1XxTALI).
+
+---
+
 ## Setup
 
 Create and activate a virtual environment, then install all dependencies:
