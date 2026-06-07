@@ -15,6 +15,8 @@ docker compose -f docker/docker-compose.yml --profile webvis up
 docker compose -f docker/docker-compose.yml --profile webvis-rrtstar up
 ```
 
+Next, open **http://localhost:8000** in your browser to run the RRT visualizer, or **http://localhost:8000/rrtstar.html** for RRT*. Select a map, set the parameters, adjust the animation speed, and click **Run**.
+
 ---
 
 ## Quick view of the web visualizer
