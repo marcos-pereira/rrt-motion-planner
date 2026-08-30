@@ -196,8 +196,45 @@ class RRTStar(RRTPlanner):
             tuple: the new node to be added to tree.
         """
         path_found, x_nearest, x_new = self.plan_found()
-        
+
         return path_found, x_nearest, x_new
+
+    def plan(self) -> tuple[list[tuple[int, int]], float]:
+        """ Run the planner until the first path to goal is found or until the maximum number
+        of nodes is reached.
+
+        RRT* keeps lowering the cost of the goal connection via rewiring even after a path is
+        first found, so this method deliberately stops at the first path instead of exhausting
+        max_num_nodes_. This leaves node budget unused so that a future plan_more() method can
+        resume run_step() on the same tree (reusing last_goal_node_, node_count_, and the
+        existing node_to_cost_ map) to keep refining the path cost, rather than replanning
+        from scratch.
+
+        Returns:
+            list: the path from x_init to x_goal, or an empty list if no path was found.
+            float: the cost of the path, or float('inf') if no path was found.
+        """
+        while True:
+            path_found, x_nearest, x_new = self.run_step()
+
+            if path_found == True:
+                print("Path to goal found!")
+                break
+
+            if self.max_number_nodes() == True:
+                print(f"Maximum number of {self.max_num_nodes_} reached")
+                break
+
+        if self.last_goal_node_ is None:
+            return [], float("inf")
+
+        # Recompute from last_goal_node_ (rather than caching path_found's x_new) so this
+        # stays correct if plan() is later resumed by a plan_more() that keeps rewiring.
+        path, path_cost = self.path(self.last_goal_node_)
+        print(f"Number of nodes in tree: {self.node_count_}")
+        print(f"Path cost: {path_cost}")
+
+        return path, path_cost
     
     def get_nearest_neighbors(self, node):
         """Get the nearest neighbors to the node in the tree.

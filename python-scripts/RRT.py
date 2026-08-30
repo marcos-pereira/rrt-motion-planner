@@ -164,5 +164,28 @@ class RRT(RRTPlanner):
             tuple: the new node to be added to tree.
         """
         path_found, x_nearest, x_new = self.plan_found()
-        
+
         return path_found, x_nearest, x_new
+
+    def plan(self) -> tuple[list[tuple[int, int]], float]:
+        """ Run the RRT planner until a path to goal is found or until the maximum number of
+        nodes is reached. Unlike run(), this always returns a well-defined path and cost,
+        using an empty path and infinite cost to signal a timeout.
+
+        Returns:
+            list: the path from x_init to x_goal, or an empty list if no path was found.
+            float: the cost of the path, or float('inf') if no path was found.
+        """
+        while True:
+            path_found, x_nearest, x_new = self.run_step()
+
+            if path_found == True:
+                print("Path to goal found!")
+                path, path_cost = self.path(x_new)
+                print(f"Number of nodes in tree: {self.node_count_}")
+                print(f"Path cost: {path_cost}")
+                return path, path_cost
+
+            if self.max_number_nodes() == True:
+                print(f"Maximum number of {self.max_num_nodes_} reached")
+                return [], float("inf")
