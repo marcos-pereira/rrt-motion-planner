@@ -17,15 +17,16 @@ from TreeNode import TreeNode
 
 class RRTStar(RRTPlanner):
     def __init__(self,
-                 x_init, 
-                 x_goal, 
-                 goal_radius, 
-                 steer_delta, 
+                 x_init,
+                 x_goal,
+                 goal_radius,
+                 steer_delta,
                  nearest_neighbor_eta,
                  gamma_rrt,
                  nearest_neighbor_radius,
-                 scene_map, 
-                 max_num_nodes):
+                 scene_map,
+                 max_num_nodes,
+                 max_planning_time=None):
         """ Return RRTStar planner.
 
         Args:
@@ -38,13 +39,16 @@ class RRTStar(RRTPlanner):
             nearest_neighbor_radius (double): this parameter is not being used and will not take effect.
             scene_map (numpy matrix): Map of the scene or configuration space where 0 indicate free space and 1 indicate obstacle.
             max_num_nodes (_type_): Maximum number of nodes in the tree.
+            max_planning_time (float): the maximum time in seconds that plan() may run, or
+            None to only bound the search by max_num_nodes.
         """
-        super().__init__(x_init, 
-                         x_goal, 
-                         goal_radius, 
-                         steer_delta, 
-                         scene_map, 
-                         max_num_nodes)
+        super().__init__(x_init,
+                         x_goal,
+                         goal_radius,
+                         steer_delta,
+                         scene_map,
+                         max_num_nodes,
+                         max_planning_time)
         
         self.gamma_rrt_ = gamma_rrt
         self.nearest_neighbor_eta_ = nearest_neighbor_eta
@@ -201,7 +205,7 @@ class RRTStar(RRTPlanner):
 
     def plan(self) -> tuple[list[tuple[int, int]], float]:
         """ Run the planner until the first path to goal is found or until the maximum number
-        of nodes is reached.
+        of nodes or the maximum planning time is reached.
 
         RRT* keeps lowering the cost of the goal connection via rewiring even after a path is
         first found, so this method deliberately stops at the first path instead of exhausting
@@ -214,6 +218,8 @@ class RRTStar(RRTPlanner):
             list: the path from x_init to x_goal, or an empty list if no path was found.
             float: the cost of the path, or float('inf') if no path was found.
         """
+        self.start_planning_timer()
+
         while True:
             path_found, x_nearest, x_new = self.run_step()
 
@@ -223,6 +229,10 @@ class RRTStar(RRTPlanner):
 
             if self.max_number_nodes() == True:
                 print(f"Maximum number of {self.max_num_nodes_} reached")
+                break
+
+            if self.max_planning_time_reached() == True:
+                print(f"Maximum planning time of {self.max_planning_time_} seconds reached")
                 break
 
         if self.last_goal_node_ is None:

@@ -43,7 +43,7 @@ pip install -r python-scripts/requirements.txt
 
 ```bash
 cd python-scripts
-python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg>
+python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg> [max_planning_time]
 ```
 
 | Argument | Description |
@@ -54,6 +54,7 @@ python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg
 | `max_nodes` | Maximum tree nodes |
 | `x0 y0` | Start coordinates |
 | `xg yg` | Goal coordinates |
+| `max_planning_time` | Optional maximum planning time in seconds. Omit for no time limit. |
 
 Example commands:
 
@@ -76,7 +77,7 @@ The web visualizer runs in a browser using PixiJS. A single server serves both a
 uvicorn webvis.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-**RRT** — open **http://localhost:8000**. Select a map, set the parameters, adjust the animation speed, and click **Run RRT**. The full tree is computed first, then animated edge-by-edge.
+**RRT** — open **http://localhost:8000**. Select a map, set the parameters, adjust the animation speed, and click **Run RRT**. The full tree is computed first, then animated edge-by-edge. Planning runs `plan()` under the hood, which stops at the first solution or when `num_nodes` or the optional `max_planning_time` (in seconds) is reached — whichever happens first.
 
 **RRT*** — open **http://localhost:8000/rrtstar.html**. Planning and drawing are interleaved: the tree is redrawn from scratch on every update because rewiring changes parent pointers. Use the **Steps per update** slider to balance responsiveness against rendering cost, and click **Stop** at any time.
 
