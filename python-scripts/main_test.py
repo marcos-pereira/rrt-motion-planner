@@ -24,16 +24,18 @@ def main():
     steer_delta = 15
     near_radius = 30
     num_nodes = 7500
+    max_planning_time = None
     map_name = 'smile.png'
-    
+
     scene_map = load_map(map_name, test=True)
-    
+
     rrt_planner = RRT(x_init,
                     x_goal,
                     goal_radius,
                     steer_delta,
                     scene_map,
-                    num_nodes)
+                    num_nodes,
+                    max_planning_time)
     
     _, _, path_found = rrt_planner.run_test()
     print(f'RRT found a path: {path_found}')
@@ -51,7 +53,8 @@ def main():
                     gamma_rrt,
                     near_radius,
                     scene_map,
-                    num_nodes)
+                    num_nodes,
+                    max_planning_time)
     
     _, _, path_found = rrt_planner.run_test()
     print(f'RRTStar found a path: {path_found}')

@@ -87,7 +87,7 @@ docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner ba
 ## CLI Arguments (`main.py`)
 
 ```
-python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_nodes> <x_init> <y_init> <x_goal> <y_goal>
+python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_nodes> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time]
 ```
 
 | Argument | Example | Description |
@@ -100,6 +100,7 @@ python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_nodes> <x_in
 | `y_init` | `40` | Start y coordinate |
 | `x_goal` | `700` | Goal x coordinate |
 | `y_goal` | `550` | Goal y coordinate |
+| `max_planning_time` | `30` | Optional maximum planning time in seconds. Omit for no time limit. |
 
 ## Rebuild After Dependency Changes
 

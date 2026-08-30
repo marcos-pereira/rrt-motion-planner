@@ -26,19 +26,21 @@ def main():
     steer_delta = 15
     near_radius = 30
     num_nodes = 20000
+    max_planning_time = None
     font_size = 25
     map_name = 'smile.png'
-    
+
     scene_map = load_map(map_name, test=True)
     map_height, map_width = scene_map.shape
-    
+
     rrt_planner = RRT(x_init,
                     x_goal,
                     goal_radius,
                     steer_delta,
                     scene_map,
-                    num_nodes)
-    
+                    num_nodes,
+                    max_planning_time)
+
     path, path_cost = rrt_planner.run()
     
     plan_drawer = PlanDrawer(map_name, map_width, map_height, font_size)
@@ -55,8 +57,9 @@ def main():
                     gamma_rrt,
                     near_radius,
                     scene_map,
-                    num_nodes)
-    
+                    num_nodes,
+                    max_planning_time)
+
     rrt_planner.run()
 
 

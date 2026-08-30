@@ -37,7 +37,7 @@ async function loadMapList() {
 function setStatus(msg) { statusEl.textContent = msg; }
 
 function getParams() {
-    return {
+    const params = {
         map_name:    mapSelect.value,
         steer_delta: parseFloat(document.getElementById('steer-delta').value),
         goal_radius: parseInt(document.getElementById('goal-radius').value),
@@ -50,6 +50,13 @@ function getParams() {
         gamma_rrt:   parseFloat(document.getElementById('gamma-rrt').value),
         eta:         parseFloat(document.getElementById('eta').value),
     };
+
+    const maxTimeRaw = document.getElementById('max-planning-time').value;
+    if (maxTimeRaw !== '') {
+        params.max_planning_time = parseFloat(maxTimeRaw);
+    }
+
+    return params;
 }
 
 function destroyApp() {
@@ -107,8 +114,9 @@ async function run() {
             finish();
             const finalMsg = snap.path_found
                 ? `Path cost: ${snap.path_cost.toFixed(1)}`
-                : 'No path found';
-            setStatus(`✅ Done — Nodes: ${snap.node_count} | ${finalMsg}`);
+                : (snap.stop_reason === 'max_time' ? 'No path found — max planning time reached' : 'No path found — max nodes reached');
+            const icon = snap.path_found ? '✅' : (snap.stop_reason === 'max_time' ? '⏱️' : '⚠️');
+            setStatus(`${icon} Done — Nodes: ${snap.node_count} | ${finalMsg}`);
         }
     };
 
