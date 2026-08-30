@@ -12,14 +12,15 @@ from RRTPlanner import RRTPlanner
 from TreeNode import TreeNode
 
 class RRT(RRTPlanner):
-    def __init__(self, 
-                 x_init, 
-                 x_goal, 
-                 goal_radius, 
-                 steer_delta, 
-                 scene_map, 
-                 max_num_nodes):
-        """Return an RRT planner object that plans by running the method run() or that 
+    def __init__(self,
+                 x_init,
+                 x_goal,
+                 goal_radius,
+                 steer_delta,
+                 scene_map,
+                 max_num_nodes,
+                 max_planning_time=None):
+        """Return an RRT planner object that plans by running the method run() or that
         plans only one iteration by running the method run_step().
 
         Args:
@@ -33,13 +34,16 @@ class RRT(RRTPlanner):
             indicate an obstacle.
             max_num_nodes (_type_): maximum number of nodes to be sampled. The planner stops
             when this number is reached.
+            max_planning_time (float): the maximum time in seconds that plan() may run, or
+            None to only bound the search by max_num_nodes.
         """
-        super().__init__(x_init, 
-                         x_goal, 
-                         goal_radius, 
-                         steer_delta, 
-                         scene_map, 
-                         max_num_nodes)
+        super().__init__(x_init,
+                         x_goal,
+                         goal_radius,
+                         steer_delta,
+                         scene_map,
+                         max_num_nodes,
+                         max_planning_time)
         
     def plan_found(self) -> tuple[bool, tuple[int, int], tuple[int, int]]:
         """ Returns if a plan could be found, the nearest node to the newest node, and the new node.
@@ -164,5 +168,34 @@ class RRT(RRTPlanner):
             tuple: the new node to be added to tree.
         """
         path_found, x_nearest, x_new = self.plan_found()
-        
+
         return path_found, x_nearest, x_new
+
+    def plan(self) -> tuple[list[tuple[int, int]], float]:
+        """ Run the RRT planner until a path to goal is found or until the maximum number of
+        nodes or the maximum planning time is reached. Unlike run(), this always returns a
+        well-defined path and cost, using an empty path and infinite cost to signal a timeout.
+
+        Returns:
+            list: the path from x_init to x_goal, or an empty list if no path was found.
+            float: the cost of the path, or float('inf') if no path was found.
+        """
+        self.start_planning_timer()
+
+        while True:
+            path_found, x_nearest, x_new = self.run_step()
+
+            if path_found == True:
+                print("Path to goal found!")
+                path, path_cost = self.path(x_new)
+                print(f"Number of nodes in tree: {self.node_count_}")
+                print(f"Path cost: {path_cost}")
+                return path, path_cost
+
+            if self.max_number_nodes() == True:
+                print(f"Maximum number of {self.max_num_nodes_} reached")
+                return [], float("inf")
+
+            if self.max_planning_time_reached() == True:
+                print(f"Maximum planning time of {self.max_planning_time_} seconds reached")
+                return [], float("inf")

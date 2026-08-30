@@ -22,11 +22,13 @@ def main():
     
     # Check if the correct number of command-line arguments are provided
     if len(sys.argv) < 4:
-        print("Usage: python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_num_nodes_in_tree> <x_init> <y_init> <x_goal> <y_goal>")
+        print("Usage: python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_num_nodes_in_tree> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time_seconds]")
         return
 
     # Access the command-line arguments starting from index 1
     arguments = sys.argv[1:]
+
+    max_planning_time = None
 
     # Print the arguments
     print("Command-line arguments:")
@@ -48,7 +50,9 @@ def main():
             x_goal = int(arg)
         elif i ==8:
             y_goal = int(arg)
-                        
+        elif i == 9:
+            max_planning_time = float(arg)
+
     init_node = (x_init, y_init)
     goal_node = (x_goal, y_goal)
     # goal_radius = 10
@@ -65,7 +69,8 @@ def main():
                     goal_radius,
                     steer_delta,
                     scene_map,
-                    num_nodes)
+                    num_nodes,
+                    max_planning_time)
     
     map_height, map_width = scene_map.shape
     plan_drawer_rrt = PlanDrawer(map_name, map_width, map_height, font_size)
@@ -98,7 +103,8 @@ def main():
                     gamma_rrt,
                     near_radius,
                     scene_map,
-                    num_nodes)
+                    num_nodes,
+                    max_planning_time)
     
     plan_drawer_rrtstar = PlanDrawer(map_name, map_width, map_height, font_size)
     plan_drawer_rrtstar.run_forever(rrtstar_planner)

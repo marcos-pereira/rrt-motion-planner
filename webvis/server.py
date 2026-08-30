@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
@@ -45,6 +46,7 @@ def compute_plan(
     y0: int = Query(40, ge=0),
     xg: int = Query(700, ge=0),
     yg: int = Query(550, ge=0),
+    max_planning_time: float | None = Query(None, ge=0.1, le=300),
 ):
     """Run the RRT planner and return edges in insertion order plus the path."""
     map_path = (MAPS_DIR / map_name).resolve()
@@ -65,19 +67,36 @@ def compute_plan(
             x_init = (x0, y0)
             x_goal = (xg, yg)
 
-            rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), scene_map, num_nodes)
+            rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), scene_map, num_nodes, max_planning_time)
 
-            path: list = []
-            path_cost: float = float("inf")
-            try:
-                path, path_cost = rrt.run()
-            except (NameError, UnboundLocalError):
-                # Max nodes reached before a path was found
-                pass
+            # Drive the loop here instead of calling rrt.plan(), so the deadline is
+            # enforced by this request's own wall-clock check after every single
+            # step, rather than relying on the planner's internal timer (which only
+            # gets a chance to fire between calls to run_step()).
+            deadline = (time.monotonic() + max_planning_time) if max_planning_time is not None else None
+            path, path_cost, stop_reason = [], float("inf"), "max_nodes"
+
+            while True:
+                path_found_step, x_nearest, x_new = rrt.run_step()
+
+                if path_found_step:
+                    path, path_cost = rrt.path(x_new)
+                    stop_reason = "goal_reached"
+                    break
+
+                if rrt.node_count_ >= rrt.max_num_nodes_:
+                    stop_reason = "max_nodes"
+                    break
+
+                if deadline is not None and time.monotonic() >= deadline:
+                    stop_reason = "max_time"
+                    break
 
             edges = rrt.tree_builder_.get_edges_in_order()
         finally:
             os.chdir(original_dir)
+
+    path_found = len(path) > 0
 
     return {
         "edges": [[list(e[0]), list(e[1])] for e in edges],
@@ -87,9 +106,10 @@ def compute_plan(
         "x_init": list(x_init),
         "x_goal": list(x_goal),
         "goal_radius": goal_radius,
-        "path_cost": path_cost,
+        "path_cost": path_cost if path_found else None,
         "node_count": len(edges) + 1,
-        "path_found": len(path) > 0,
+        "path_found": path_found,
+        "stop_reason": stop_reason,
         "map_name": map_name,
     }
 
@@ -107,6 +127,7 @@ def stream_rrtstar(
     batch_size: int = Query(100, ge=1, le=5000),
     gamma_rrt: float = Query(1000.0, ge=1.0),
     eta: float = Query(20.0, ge=1.0),
+    max_planning_time: float | None = Query(None, ge=0.1, le=300),
 ):
     """Run RRT* step-by-step and stream full tree snapshots as Server-Sent Events.
 
@@ -141,7 +162,13 @@ def stream_rrtstar(
             eta, gamma_rrt,
             20,      # nearest_neighbor_radius — unused per docstring
             scene_map, num_nodes,
+            max_planning_time,
         )
+
+        # Enforce the deadline here, with our own wall-clock check after every single
+        # step, rather than relying on the planner's internal timer (which only gets
+        # a chance to fire between calls to run_step()).
+        deadline = (time.monotonic() + max_planning_time) if max_planning_time is not None else None
 
         step = 0
         while True:
@@ -152,7 +179,10 @@ def stream_rrtstar(
                 return
 
             step += 1
-            done = bool(rrtstar.max_number_nodes())
+            node_budget_reached = rrtstar.node_count_ >= rrtstar.max_num_nodes_
+            time_budget_reached = deadline is not None and time.monotonic() >= deadline
+            done = node_budget_reached or time_budget_reached
+            stop_reason = ("max_nodes" if node_budget_reached else "max_time") if done else None
 
             if step % batch_size == 0 or done:
                 # Build edge list from the current parent-pointer tree.
@@ -185,6 +215,7 @@ def stream_rrtstar(
                     "goal_radius": goal_radius,
                     "map_name": map_name,
                     "done": done,
+                    "stop_reason": stop_reason,
                 }
 
                 yield f"data: {json.dumps(snapshot)}\n\n"

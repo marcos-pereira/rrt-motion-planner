@@ -8,6 +8,7 @@
 # Contributors: 
 # marcos-pereira (https://github.com/marcos-pereira)
 
+import time
 from abc import ABC, abstractmethod
 import numpy as np
 from random_config import random
@@ -24,10 +25,11 @@ class RRTPlanner(ABC):
                  goal_radius,
                  steer_delta,
                  scene_map,
-                 max_num_nodes):
+                 max_num_nodes,
+                 max_planning_time=None):
         """ Return RRTPlanner object. These planners were implement or are inspired by the
         algorithms from the paper:
-        S. Karaman and E. Frazzoli, “Sampling-based algorithms for optimal motion planning,” 
+        S. Karaman and E. Frazzoli, “Sampling-based algorithms for optimal motion planning,”
         The International Journal of Robotics Research, vol. 30, no. 7, pp. 846–894, 2011, doi: 10.1177/0278364911406761.
 
         Args:
@@ -39,12 +41,15 @@ class RRTPlanner(ABC):
             towards a new sampled node.
             scene_map (numpy matrix): the scene map where 0 indicate free space and 1 indicate obstacles.
             max_num_nodes (int): the maximum number of nodes to run the planner.
+            max_planning_time (float): the maximum time in seconds to run plan(), or None to
+            only bound the search by max_num_nodes.
         """
         self.x_init_ = x_init
         self.x_goal_ = x_goal
         self.goal_radius_ = goal_radius
         self.steer_delta_ = steer_delta
         self.max_num_nodes_ = max_num_nodes
+        self.max_planning_time_ = max_planning_time
         self.scene_map_ = scene_map
 
         self.map_height_, self.map_width_ = self.scene_map_.shape
@@ -102,6 +107,10 @@ class RRTPlanner(ABC):
         
         ## Store if path was found
         self.path_found_ = False
+
+        ## Timestamp set by start_planning_timer() when plan() begins running,
+        ## used by max_planning_time_reached() to enforce max_planning_time_.
+        self.planning_start_time_ = time.time()
         
     @abstractmethod
     def plan_found(self):
@@ -120,7 +129,21 @@ class RRTPlanner(ABC):
         """Run only one step of the planner.
         """
         pass
-    
+
+    @abstractmethod
+    def plan(self) -> tuple[list[tuple[int, int]], float]:
+        """Run the planner, calling run_step() repeatedly, until a path to goal is found or
+        max_number_nodes() reports the node budget is exhausted or max_planning_time_reached()
+        reports the time budget is exhausted. Unlike run(), this always returns well-defined
+        values instead of leaving path/cost undefined on timeout.
+
+        Returns:
+            list: the path from x_init to x_goal, or an empty list if no path was found
+            before the maximum number of nodes or the maximum planning time was reached.
+            float: the cost of the path, or float('inf') if no path was found.
+        """
+        pass
+
     def run_test(self):
         """ Run the planner on the loaded map with no visualization.
         """
@@ -165,18 +188,41 @@ class RRTPlanner(ABC):
         Returns:
             bool: True if maximum number of nodes was reached.
         """
-        
+
         max_number_nodes_reached = False
-        
+
         if self.node_count_ >= self.max_num_nodes_:
             print("Maximal number of nodes in tree reached!")
             print("Input anything and press enter to quit.")
             max_number_nodes_reached = True
-            
+
             return max_number_nodes_reached
         else:
             return max_number_nodes_reached
-        
+
+    def start_planning_timer(self):
+        """ Mark the start of a plan() run, used as the reference point for
+        max_planning_time_reached().
+        """
+        self.planning_start_time_ = time.time()
+
+    def max_planning_time_reached(self):
+        """ Check if the maximum planning time was reached. Always returns False when
+        max_planning_time_ is None, meaning the search is only bounded by max_num_nodes_.
+
+        Returns:
+            bool: True if max_planning_time_ is set and has elapsed since
+            start_planning_timer() was called.
+        """
+        if self.max_planning_time_ is None:
+            return False
+
+        if time.time() - self.planning_start_time_ >= self.max_planning_time_:
+            print("Maximal planning time reached!")
+            return True
+
+        return False
+
     def sample_space(self, x_max, y_max):
         """ Sample the configuration space with limits x_max and y_max.
 

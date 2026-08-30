@@ -40,7 +40,7 @@ async function loadMapList() {
 function setStatus(msg) { statusEl.textContent = msg; }
 
 function getParams() {
-    return {
+    const params = {
         map_name:    mapSelect.value,
         steer_delta: parseFloat(document.getElementById('steer-delta').value),
         goal_radius: parseInt(document.getElementById('goal-radius').value),
@@ -50,6 +50,13 @@ function getParams() {
         xg: parseInt(document.getElementById('xg').value),
         yg: parseInt(document.getElementById('yg').value),
     };
+
+    const maxTimeRaw = document.getElementById('max-planning-time').value;
+    if (maxTimeRaw !== '') {
+        params.max_planning_time = parseFloat(maxTimeRaw);
+    }
+
+    return params;
 }
 
 function destroyApp() {
@@ -174,6 +181,10 @@ function animationStep() {
         if (planData.path_found) {
             setStatus(
                 `✅ Done — Path cost: ${planData.path_cost.toFixed(1)} | Nodes: ${planData.node_count}`
+            );
+        } else if (planData.stop_reason === 'max_time') {
+            setStatus(
+                `⏱️ Max planning time reached, no path found | Nodes: ${planData.node_count}`
             );
         } else {
             setStatus(
