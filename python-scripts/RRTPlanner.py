@@ -120,7 +120,20 @@ class RRTPlanner(ABC):
         """Run only one step of the planner.
         """
         pass
-    
+
+    @abstractmethod
+    def plan(self) -> tuple[list[tuple[int, int]], float]:
+        """Run the planner, calling run_step() repeatedly, until a path to goal is found or
+        max_number_nodes() reports the node budget is exhausted. Unlike run(), this always
+        returns well-defined values instead of leaving path/cost undefined on timeout.
+
+        Returns:
+            list: the path from x_init to x_goal, or an empty list if no path was found
+            before the maximum number of nodes was reached.
+            float: the cost of the path, or float('inf') if no path was found.
+        """
+        pass
+
     def run_test(self):
         """ Run the planner on the loaded map with no visualization.
         """

@@ -67,13 +67,7 @@ def compute_plan(
 
             rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), scene_map, num_nodes)
 
-            path: list = []
-            path_cost: float = float("inf")
-            try:
-                path, path_cost = rrt.run()
-            except (NameError, UnboundLocalError):
-                # Max nodes reached before a path was found
-                pass
+            path, path_cost = rrt.plan()
 
             edges = rrt.tree_builder_.get_edges_in_order()
         finally:
