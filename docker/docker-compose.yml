@@ -22,6 +22,12 @@ name: rrt-motion-planner
 #
 # Code changes in python-scripts/ and webvis/ are reflected immediately
 # because both directories are mounted as volumes (no rebuild needed).
+#
+# Planner parameters (map, start/goal, node and time budgets, ...) for the
+# `desktop` and `plan-then-draw` profiles below are read from docker/.env, with
+# fallback defaults if that file or a given variable is missing. Copy docker/.env.example
+# to docker/.env and edit it to change them:
+#   cp docker/.env.example docker/.env
 
 # ── Shared config for desktop GUI services ─────────────────────────────────
 x-base: &base
@@ -55,14 +61,18 @@ services:
     command:
       - python3
       - main.py
-      - smile.png
-      - "15"
-      - "10"
-      - "50000"
-      - "40"
-      - "40"
-      - "700"
-      - "550"
+      - ${RRT_MAP_NAME:-smile.png}
+      - ${RRT_STEER_DELTA:-15}
+      - ${RRT_GOAL_RADIUS:-10}
+      - ${RRT_MAX_NODES:-50000}
+      - ${RRT_X_INIT:-40}
+      - ${RRT_Y_INIT:-40}
+      - ${RRT_X_GOAL:-700}
+      - ${RRT_Y_GOAL:-550}
+      - ${RRT_MAX_PLANNING_TIME:-30}
+      - ${RRT_GAMMA_RRT:-1000}
+      - ${RRT_ETA_RRT:-20}
+      - ${RRT_NEAR_RADIUS:-20}
 
   # ── Desktop: full plan then edge-by-edge replay ────────────────────────
   plan-then-draw:
@@ -72,6 +82,18 @@ services:
     command:
       - python3
       - plan_then_draw.py
+      - ${PLAN_THEN_DRAW_MAP_NAME:-smile.png}
+      - ${PLAN_THEN_DRAW_STEER_DELTA:-15}
+      - ${PLAN_THEN_DRAW_GOAL_RADIUS:-10}
+      - ${PLAN_THEN_DRAW_MAX_NODES:-20000}
+      - ${PLAN_THEN_DRAW_X_INIT:-30}
+      - ${PLAN_THEN_DRAW_Y_INIT:-30}
+      - ${PLAN_THEN_DRAW_X_GOAL:-30}
+      - ${PLAN_THEN_DRAW_Y_GOAL:-460}
+      - ${PLAN_THEN_DRAW_MAX_PLANNING_TIME:-15}
+      - ${PLAN_THEN_DRAW_GAMMA_RRT:-1000}
+      - ${PLAN_THEN_DRAW_ETA_RRT:-20}
+      - ${PLAN_THEN_DRAW_NEAR_RADIUS:-50}
 
   # ── Web visualizer: PixiJS in the browser ─────────────────────────────
   # Both webvis and webvis-rrtstar profiles start this same service.

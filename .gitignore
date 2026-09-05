@@ -6,3 +6,6 @@ __pycache__/
 # Ignore virtual environment directories
 venv/
 env/
+
+# Local docker-compose parameter overrides (keep docker/.env.example tracked)
+docker/.env

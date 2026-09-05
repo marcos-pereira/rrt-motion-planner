@@ -36,14 +36,17 @@ Both services mount `python-scripts/` as a live volume — code changes are refl
 # 1 — Allow containers to connect to the host X server (desktop services only)
 xhost +local:docker
 
-# 2 — Build images in order (webvis layer depends on the base)
+# 2 — Copy the parameter template (edit docker/.env to change map, start/goal, budgets, ...)
+cp docker/.env.example docker/.env
+
+# 3 — Build images in order (webvis layer depends on the base)
 docker compose -f docker/docker-compose.yml build rrt-planner
 docker compose -f docker/docker-compose.yml build rrt-webvis
 
-# 3a — Run the desktop visualizer
+# 4a — Run the desktop visualizer
 docker compose -f docker/docker-compose.yml --profile desktop up
 
-# 3b — Run the web visualizer, then open http://localhost:8000
+# 4b — Run the web visualizer, then open http://localhost:8000
 docker compose -f docker/docker-compose.yml --profile webvis up
 ```
 
@@ -87,7 +90,7 @@ docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner ba
 ## CLI Arguments (`main.py`)
 
 ```
-python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_nodes> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time]
+python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_nodes> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time] [gamma_rrt] [eta_rrt] [near_radius]
 ```
 
 | Argument | Example | Description |
@@ -101,6 +104,30 @@ python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_nodes> <x_in
 | `x_goal` | `700` | Goal x coordinate |
 | `y_goal` | `550` | Goal y coordinate |
 | `max_planning_time` | `30` | Optional maximum planning time in seconds. Omit for no time limit. |
+| `gamma_rrt` | `1000` | Optional RRT* nearest-neighbor gain. Defaults to `1000`. |
+| `eta_rrt` | `20` | Optional RRT* nearest-neighbor radius cap. Defaults to `20`. |
+| `near_radius` | `20` | Optional RRT* `nearest_neighbor_radius` — accepted for backward compatibility but not actually used by the algorithm (see `RRTStar.__init__`'s docstring). Defaults to `20`. |
+
+## CLI Arguments (`plan_then_draw.py`)
+
+```
+python3 plan_then_draw.py [map_name.png] [steer_step_size] [goal_radius] [max_nodes] [x_init] [y_init] [x_goal] [y_goal] [max_planning_time] [gamma_rrt] [eta_rrt] [near_radius]
+```
+
+Same arguments as `main.py` above, but every one of them is optional — any left out (or the whole command with no arguments at all) keeps its built-in default. Run `python3 plan_then_draw.py --help` for the defaults.
+
+## Configuring Planner Parameters (`.env`)
+
+The `desktop` (`main.py`) and `plan-then-draw` (`plan_then_draw.py`) profiles read their CLI arguments from `docker/.env` — map, start/goal coordinates, node budget, max planning time, and RRT* tuning (`gamma_rrt`, `eta_rrt`, `near_radius`) — instead of hardcoded values in `docker-compose.yml`.
+
+```bash
+cp docker/.env.example docker/.env
+# then edit docker/.env
+```
+
+Each variable also has a fallback default in `docker-compose.yml` matching `docker/.env.example`, so a missing file or a deleted line just falls back to that default rather than failing. See `docker/.env.example` for the full list of variables (prefixed `RRT_` for the `desktop` profile, `PLAN_THEN_DRAW_` for the `plan-then-draw` profile).
+
+`docker/.env` is gitignored since it's a local override; `docker/.env.example` is the tracked template.
 
 ## Rebuild After Dependency Changes
 

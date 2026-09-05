@@ -182,13 +182,14 @@ class PlanDrawer(pyglet.window.Window):
             self.flip()
         
     def draw_and_plan(self, planner : RRTPlanner):
-        """ Returns True if plan still not found.
+        """ Returns True if drawing should continue, i.e. if the path is still not found
+        and neither the max number of nodes nor the max planning time has been reached.
 
         Args:
             planner (RRTPlanner): The RRT planner.
 
         Returns:
-            bool: True if plan still not found.
+            bool: True if drawing should continue.
         """
         
         self.clear()
@@ -252,58 +253,75 @@ class PlanDrawer(pyglet.window.Window):
         # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
         # Facilitates the dispatch of events
         self.flip()
-        
-        return not plan_found
-            
+
+        budget_exhausted = planner.max_number_nodes() or planner.max_planning_time_reached()
+
+        return not (plan_found or budget_exhausted)
+
     def run(self, planner):
         """ Run the planner and draw the planning after the key 's' is pressed.
-        Press escape to stop.
+        Press escape to stop, or wait for the goal to be found, the max number of
+        nodes, or the max planning time to be reached.
 
         Args:
             planner (RRTPlanner): The RRT planner.
         """
         draw = True
-        
+        timer_started = False
+
         while True:
-            if self.drawing_ == 1:        
+            if self.drawing_ == 1:
+                if not timer_started:
+                    planner.start_planning_timer()
+                    timer_started = True
+
                 if draw:
                     draw = self.draw_and_plan(planner)
-                
+
             if self.stop_drawing_ == 1:
                 return
 
             event = self.dispatch_events()
-            
+
         return
     
     def run_forever(self, planner):
-        """ Run the planner and draw the planning after the key 's' is pressed.
-        Press escape to stop.
+        """ Run the planner and draw the planning after the key 's' is pressed, continuing
+        to rewire and lower the path cost even after the first path is found. Press escape
+        to stop, or wait for the max number of nodes or the max planning time to be reached.
 
         Args:
             planner (RRTPlanner): The RRT planner.
         """
         draw = True
-        
+        timer_started = False
+
         while True:
-            if self.drawing_ == 1:        
-                self.draw_plan_rrtstar(planner)
-                
+            if self.drawing_ == 1:
+                if not timer_started:
+                    planner.start_planning_timer()
+                    timer_started = True
+
+                if draw:
+                    draw = self.draw_plan_rrtstar(planner)
+
             if self.stop_drawing_ == 1:
                 return
 
             self.dispatch_events()
-            
+
         return
 
     def draw_plan_rrtstar(self, planner : RRTStar):
-        """ Returns True if plan still not found.
+        """ Returns True if drawing should continue, i.e. if neither the max number of
+        nodes nor the max planning time has been reached. Unlike draw_and_plan(), finding
+        a path does not stop the drawing, since RRT* keeps rewiring to lower its cost.
 
         Args:
             planner (RRTStar): The RRT* planner.
 
         Returns:
-            bool: True if plan still not found.
+            bool: True if drawing should continue.
         """
         
         self.clear()
@@ -366,10 +384,69 @@ class PlanDrawer(pyglet.window.Window):
                                     group=self.foreground_)
         
         self.batch_.draw()
-        
+
         # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
         # Facilitates the dispatch of events
         self.flip()
-        
-        return not plan_found
-        
+
+        budget_exhausted = planner.max_number_nodes() or planner.max_planning_time_reached()
+
+        return not budget_exhausted
+
+    def draw_final(self, planner : RRTPlanner, path : list[tuple[int, int]], path_cost : float):
+        """ Draw the finished tree and path of a planner that has already been run to
+        completion, e.g. via plan(). Unlike draw(), which replays the TreeBuilder's
+        append-only edge log, this walks each node's current parent pointer, so it stays
+        correct for RRT* trees whose edges get rewired after being first added.
+
+        Args:
+            planner (RRTPlanner): the RRT or RRT* planner, already run to completion.
+            path (list): the path from x_init to x_goal, or an empty list if none was found.
+            path_cost (float): the cost of path, as returned alongside it by plan().
+        """
+        self.clear()
+
+        for node in planner.get_tree_nodes():
+            parent = node.get_parent()
+            if parent is not None:
+                self.lines_.append(Line(parent.get_node_coordinates()[0],
+                                        self.map_height_-parent.get_node_coordinates()[1],
+                                        node.get_node_coordinates()[0],
+                                        self.map_height_-node.get_node_coordinates()[1],
+                                        self.batch_,
+                                        self.foreground_))
+
+        for i in range(len(path)-1):
+            self.path_line_.add(Path(path[i][0],
+                                    self.map_height_-path[i][1],
+                                    path[i+1][0],
+                                    self.map_height_-path[i+1][1],
+                                    batch=self.batch_,
+                                    group=self.path_layer_))
+
+        if path:
+            self.path_cost_text_ = pyglet.text.Label(
+                'Path cost: ' + str(path_cost),
+                font_name='Arial',
+                font_size=self.font_size_, x=0, y=self.font_size_,
+                batch=self.batch_, group=self.path_layer_)
+
+        ## Draw x_init and x_goal
+        draw_x_init = shapes.Circle(planner.x_init_[0],
+                                    self.map_height_-planner.x_init_[1],
+                                    radius=planner.goal_radius_,
+                                    color=(255, 207, 88),
+                                    batch=self.batch_,
+                                    group=self.foreground_)
+        draw_x_goal = shapes.Circle(planner.x_goal_[0],
+                                    self.map_height_-planner.x_goal_[1],
+                                    radius=planner.goal_radius_,
+                                    color=(92, 214, 118),
+                                    batch=self.batch_,
+                                    group=self.foreground_)
+
+        self.batch_.draw()
+
+        # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
+        # Facilitates the dispatch of events
+        self.flip()

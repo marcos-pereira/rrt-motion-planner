@@ -22,13 +22,18 @@ def main():
     
     # Check if the correct number of command-line arguments are provided
     if len(sys.argv) < 4:
-        print("Usage: python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_num_nodes_in_tree> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time_seconds]")
+        print("Usage: python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_num_nodes_in_tree> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time_seconds] [gamma_rrt] [eta_rrt] [near_radius]")
         return
 
     # Access the command-line arguments starting from index 1
     arguments = sys.argv[1:]
 
     max_planning_time = None
+
+    # Default RRT* tuning parameters, used unless overridden below.
+    gamma_rrt = 1000
+    eta_rrt = 20
+    near_radius = 20
 
     # Print the arguments
     print("Command-line arguments:")
@@ -52,16 +57,21 @@ def main():
             y_goal = int(arg)
         elif i == 9:
             max_planning_time = float(arg)
+        elif i == 10:
+            gamma_rrt = float(arg)
+        elif i == 11:
+            eta_rrt = float(arg)
+        elif i == 12:
+            near_radius = float(arg)
 
     init_node = (x_init, y_init)
     goal_node = (x_goal, y_goal)
     # goal_radius = 10
     # steer_delta = 15
-    near_radius = 30
     # num_nodes = 50000
     font_size = 25
     # map_name = 'smile1.png'
-    
+
     scene_map = load_map(map_name)
     
     rrt_planner = RRT(init_node,
@@ -91,10 +101,7 @@ def main():
     #                          font_size)
 
     # rrt_planner.run()
-    
-    gamma_rrt = 1000
-    eta_rrt = 20
-    near_radius = 20
+
     rrtstar_planner = RRTStar(init_node,
                     goal_node,
                     goal_radius,
