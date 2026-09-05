@@ -204,15 +204,10 @@ class RRTStar(RRTPlanner):
         return path_found, x_nearest, x_new
 
     def plan(self) -> tuple[list[tuple[int, int]], float]:
-        """ Run the planner until the first path to goal is found or until the maximum number
-        of nodes or the maximum planning time is reached.
-
-        RRT* keeps lowering the cost of the goal connection via rewiring even after a path is
-        first found, so this method deliberately stops at the first path instead of exhausting
-        max_num_nodes_. This leaves node budget unused so that a future plan_more() method can
-        resume run_step() on the same tree (reusing last_goal_node_, node_count_, and the
-        existing node_to_cost_ map) to keep refining the path cost, rather than replanning
-        from scratch.
+        """ Run the planner until the maximum number of nodes or the maximum planning time
+        is reached, continuing to run_step() past the first path found so that rewiring
+        keeps lowering the cost of the path to goal, instead of stopping as soon as a path
+        exists.
 
         Returns:
             list: the path from x_init to x_goal, or an empty list if no path was found.
@@ -221,11 +216,7 @@ class RRTStar(RRTPlanner):
         self.start_planning_timer()
 
         while True:
-            path_found, x_nearest, x_new = self.run_step()
-
-            if path_found == True:
-                print("Path to goal found!")
-                break
+            self.run_step()
 
             if self.max_number_nodes() == True:
                 print(f"Maximum number of {self.max_num_nodes_} reached")
@@ -238,8 +229,8 @@ class RRTStar(RRTPlanner):
         if self.last_goal_node_ is None:
             return [], float("inf")
 
-        # Recompute from last_goal_node_ (rather than caching path_found's x_new) so this
-        # stays correct if plan() is later resumed by a plan_more() that keeps rewiring.
+        # last_goal_node_ is kept up to date by plan_found() every time a lower-cost path
+        # is found, so this reflects the best path found up to the point the budget ran out.
         path, path_cost = self.path(self.last_goal_node_)
         print(f"Number of nodes in tree: {self.node_count_}")
         print(f"Path cost: {path_cost}")

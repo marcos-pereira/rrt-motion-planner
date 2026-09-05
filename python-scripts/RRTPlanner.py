@@ -132,10 +132,12 @@ class RRTPlanner(ABC):
 
     @abstractmethod
     def plan(self) -> tuple[list[tuple[int, int]], float]:
-        """Run the planner, calling run_step() repeatedly, until a path to goal is found or
-        max_number_nodes() reports the node budget is exhausted or max_planning_time_reached()
-        reports the time budget is exhausted. Unlike run(), this always returns well-defined
-        values instead of leaving path/cost undefined on timeout.
+        """Run the planner, calling run_step() repeatedly, until max_number_nodes() reports
+        the node budget is exhausted or max_planning_time_reached() reports the time budget
+        is exhausted (RRT stops as soon as a path to goal is found, since it never improves
+        an existing path; RRT* keeps running past the first path found, since rewiring keeps
+        lowering its cost). Unlike run(), this always returns well-defined values instead of
+        leaving path/cost undefined on timeout.
 
         Returns:
             list: the path from x_init to x_goal, or an empty list if no path was found
