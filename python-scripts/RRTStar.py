@@ -12,6 +12,7 @@ import copy
 
 import numpy as np
 from RRTPlanner import RRTPlanner
+from Steer import Steer
 from sklearn.neighbors import NearestNeighbors
 from TreeNode import TreeNode
 
@@ -21,6 +22,7 @@ class RRTStar(RRTPlanner):
                  x_goal,
                  goal_radius,
                  steer_delta,
+                 steer: Steer,
                  nearest_neighbor_eta,
                  gamma_rrt,
                  nearest_neighbor_radius,
@@ -34,6 +36,8 @@ class RRTStar(RRTPlanner):
             x_goal (_type_): The goal configuration node.
             goal_radius (_type_): Radius to be considered within the goal.
             steer_delta (_type_): Value used to steer toward the sampled configurations.
+            steer (Steer): the steering strategy used to move from a node in the tree
+            towards the sampled configurations.
             nearest_neighbor_eta (double) : Gain used to determine radius of ball for nearest neighbors.
             gamma_rrt (_type_): Gain used to determine radius of ball for nearest neighbors.
             nearest_neighbor_radius (double): this parameter is not being used and will not take effect.
@@ -46,6 +50,7 @@ class RRTStar(RRTPlanner):
                          x_goal,
                          goal_radius,
                          steer_delta,
+                         steer,
                          scene_map,
                          max_num_nodes,
                          max_planning_time)
@@ -89,7 +94,7 @@ class RRTStar(RRTPlanner):
 
             ## Steer from nearest node in tree (i.e. parent_node) towards the
             ## x_rand to obtain a new node for the tree
-            x_new = self.steer(x_nearest, x_rand, self.steer_delta_)
+            x_new = self.steer_.steer(x_nearest, x_rand, self.steer_delta_)
             
             ## Check if node is in collision
             if self.collision(x_new) == True:

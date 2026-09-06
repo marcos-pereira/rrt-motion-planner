@@ -9,6 +9,7 @@
 # marcos-pereira (https://github.com/marcos-pereira)
 
 from RRTPlanner import RRTPlanner
+from Steer import Steer
 from TreeNode import TreeNode
 
 class RRT(RRTPlanner):
@@ -17,6 +18,7 @@ class RRT(RRTPlanner):
                  x_goal,
                  goal_radius,
                  steer_delta,
+                 steer: Steer,
                  scene_map,
                  max_num_nodes,
                  max_planning_time=None):
@@ -30,6 +32,8 @@ class RRT(RRTPlanner):
             steer_delta (int): the steer step towards goal when going from a node in the tree
             towards the new node being added. This parameter is map dependant and will vary
             for each map.
+            steer (Steer): the steering strategy used to move from a node in the tree
+            towards the new node being added.
             scene_map (numpy matrix): the binary matrix where 0 indicate free space and 1
             indicate an obstacle.
             max_num_nodes (_type_): maximum number of nodes to be sampled. The planner stops
@@ -41,6 +45,7 @@ class RRT(RRTPlanner):
                          x_goal,
                          goal_radius,
                          steer_delta,
+                         steer,
                          scene_map,
                          max_num_nodes,
                          max_planning_time)
@@ -62,7 +67,7 @@ class RRT(RRTPlanner):
 
             ## Steer from nearest node in tree (i.e. parent_node) towards the
             ## x_rand to obtain a new node for the tree
-            x_new = self.steer(x_nearest, x_rand, self.steer_delta_)
+            x_new = self.steer_.steer(x_nearest, x_rand, self.steer_delta_)
             
             ## Check if node is in collision
             if self.collision(x_new):
