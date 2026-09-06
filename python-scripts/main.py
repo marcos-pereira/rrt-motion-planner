@@ -14,6 +14,7 @@ from rtree import index
 # from RRTStarPlannerMapPyglet import RRTStarPlanner
 from RRT import RRT
 from RRTStar import RRTStar
+from SimpleDeltaSteering import SimpleDeltaSteering
 from Map import load_map
 from PlanDrawer import PlanDrawer
 import sys
@@ -73,11 +74,14 @@ def main():
     # map_name = 'smile1.png'
 
     scene_map = load_map(map_name)
-    
+
+    steer = SimpleDeltaSteering()
+
     rrt_planner = RRT(init_node,
                     goal_node,
                     goal_radius,
                     steer_delta,
+                    steer,
                     scene_map,
                     num_nodes,
                     max_planning_time)
@@ -106,6 +110,7 @@ def main():
                     goal_node,
                     goal_radius,
                     steer_delta,
+                    steer,
                     eta_rrt,
                     gamma_rrt,
                     near_radius,

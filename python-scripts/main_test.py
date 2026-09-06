@@ -13,6 +13,7 @@
 from rtree import index
 from RRT import RRT
 from RRTStar import RRTStar
+from SimpleDeltaSteering import SimpleDeltaSteering
 from Map import load_map
 import sys
 
@@ -29,10 +30,13 @@ def main():
 
     scene_map = load_map(map_name, test=True)
 
+    steer = SimpleDeltaSteering()
+
     rrt_planner = RRT(x_init,
                     x_goal,
                     goal_radius,
                     steer_delta,
+                    steer,
                     scene_map,
                     num_nodes,
                     max_planning_time)
@@ -49,6 +53,7 @@ def main():
                     x_goal,
                     goal_radius,
                     steer_delta,
+                    steer,
                     eta_rrt,
                     gamma_rrt,
                     near_radius,

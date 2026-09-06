@@ -15,6 +15,7 @@ from random_config import random
 from rtree import index
 from scipy.spatial import cKDTree
 
+from Steer import Steer
 from TreeBuilder import TreeBuilder
 from TreeNode import TreeNode
 
@@ -24,6 +25,7 @@ class RRTPlanner(ABC):
                  x_goal,
                  goal_radius,
                  steer_delta,
+                 steer: Steer,
                  scene_map,
                  max_num_nodes,
                  max_planning_time=None):
@@ -39,6 +41,8 @@ class RRTPlanner(ABC):
             at the goal.
             steer_delta (int): the step size in pixels when going from a node in the tree
             towards a new sampled node.
+            steer (Steer): the steering strategy used to move from a node in the tree
+            towards a new sampled node when expanding the tree.
             scene_map (numpy matrix): the scene map where 0 indicate free space and 1 indicate obstacles.
             max_num_nodes (int): the maximum number of nodes to run the planner.
             max_planning_time (float): the maximum time in seconds to run plan(), or None to
@@ -48,6 +52,7 @@ class RRTPlanner(ABC):
         self.x_goal_ = x_goal
         self.goal_radius_ = goal_radius
         self.steer_delta_ = steer_delta
+        self.steer_ = steer
         self.max_num_nodes_ = max_num_nodes
         self.max_planning_time_ = max_planning_time
         self.scene_map_ = scene_map
@@ -258,33 +263,6 @@ class RRTPlanner(ABC):
 
         return distance
     
-    def steer(self, node1: tuple[int, int], node2: tuple[int, int], delta: float) -> tuple[int, int]:
-        """ Returns a node between node1 and node2. If they are close by delta, then 
-        return node2.
-
-        Args:
-            node1 (tuple): the initial node.
-            node2 (tuple): the goal node towards which we steer.
-            delta (double): the minimum distance to consider already near enough to node2.
-
-        Returns:
-            tuple: the new node between node1 and node2. 
-        """
-        node1 = np.array([node1[0], node1[1]])
-        node2 = np.array([node2[0], node2[1]])
-        if self.nodes_distance(node1, node2) < delta:
-            node = node2
-        else:
-            diffnodes = node2 - node1
-            diffnodes = diffnodes/self.nodes_distance(node1, node2)
-            node = node1 + delta*diffnodes
-
-        # Convert to int, otherwise the maps will not work with double precision
-        # TODO: use some better mapping like a hash function to avoid this problem
-        node = tuple(int(element) for element in node)
-
-        return  node
-
     def linear_interpolation(self, node1, node2, delta):
         """Do a linear interpolation between the node1 and node2
         using the interpolation factor delta if no collision occurs
