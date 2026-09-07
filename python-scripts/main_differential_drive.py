@@ -22,6 +22,16 @@ from Map import load_map
 from PlanDrawer import PlanDrawer
 from RealVectorState import RealVectorState
 
+def chronological_path(path, state_init):
+    """ Return path (as returned by RRTPlanner.plan()/path(), ordered from the reached
+    goal node back towards state_init, and excluding state_init itself) reversed into
+    chronological order from state_init to the goal, with state_init prepended.
+    """
+    if not path:
+        return []
+
+    return [state_init.get_value()] + list(reversed(path))
+
 def main():
 
     # Default parameters, used for any command-line argument left out.
@@ -45,8 +55,12 @@ def main():
     linear_velocity_min, linear_velocity_max = 0.0, 20.0
     angular_velocity_min, angular_velocity_max = -1.0, 1.0
 
-    # Radius of the circular footprint used by DifferentialDriveCollisionChecker.
+    # Radius of the circular footprint used by DifferentialDriveCollisionChecker and by
+    # PlanDrawer.animate_differential_drive_path() to draw the robot.
     robot_radius = 5.0
+
+    # States of the final path drawn per second by animate_differential_drive_path().
+    fps = 10.0
 
     # Default RRT* tuning parameters, used unless overridden below.
     gamma_rrt = 1000
@@ -58,7 +72,7 @@ def main():
     if arguments and arguments[0] in ('-h', '--help'):
         print("Usage: python3 main_differential_drive.py [map_name.png] [goal_radius] "
               "[max_num_nodes_in_tree] [x_init] [y_init] [x_goal] [y_goal] [max_planning_time_seconds] "
-              "[robot_radius] [linear_velocity_max] [angular_velocity_max] [sampling_time]")
+              "[robot_radius] [linear_velocity_max] [angular_velocity_max] [sampling_time] [fps]")
         print("Any argument left out keeps its default value.")
         return
 
@@ -91,6 +105,8 @@ def main():
             angular_velocity_max = float(arg)
         elif i == 12:
             sampling_time = float(arg)
+        elif i == 13:
+            fps = float(arg)
 
     # The goal is a position with a radius of tolerance; the goal heading is unconstrained,
     # since path_to_goal_found() only compares (x, y), so theta_goal is a placeholder.
@@ -126,6 +142,7 @@ def main():
 
     plan_drawer_rrt = PlanDrawer(map_name, map_width, map_height, font_size)
     plan_drawer_rrt.draw(rrt_planner.tree_builder_, x_goal, goal_radius, path)
+    plan_drawer_rrt.animate_differential_drive_path(chronological_path(path, x_init), robot_radius, fps)
 
     # Wait for the user to inspect the RRT tree and press Escape before planning RRT*.
     while plan_drawer_rrt.stop_drawing_ == 0:
@@ -148,6 +165,7 @@ def main():
 
     plan_drawer_rrtstar = PlanDrawer(map_name, map_width, map_height, font_size)
     plan_drawer_rrtstar.draw_final(rrtstar_planner, path, path_cost)
+    plan_drawer_rrtstar.animate_differential_drive_path(chronological_path(path, x_init), robot_radius, fps)
 
     # Keep the RRT* window open until Escape is pressed, instead of exiting immediately
     # and closing it as soon as the tree is drawn.

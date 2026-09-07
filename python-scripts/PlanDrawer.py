@@ -8,6 +8,9 @@
 # Contributors: 
 # marcos-pereira (https://github.com/marcos-pereira)
 
+import math
+import time
+
 import pyglet
 from pyglet import shapes, image
 import numpy as np
@@ -24,6 +27,61 @@ class Line():
 class Path():
     def __init__(self, x1, y1, x2, y2, batch, group):
         self.path_ = shapes.Line(x1, y1, x2, y2, color=(11, 39, 219), thickness=5, batch=batch, group=group)
+
+class DifferentialDriveRobotShape():
+    """ Draws a differential drive robot footprint as a circle with two lines showing its
+    orientation: a heading line from the center to the edge of the circle in the direction
+    the robot is facing, and an axle line perpendicular to the heading spanning the circle's
+    diameter, representing the wheel axle.
+
+    x, y and theta are given in the original map image frame, where y increases downward;
+    map_height flips y so the shape is placed correctly in pyglet's y-up window, the same
+    convention used by Line and Path elsewhere in this file.
+    """
+
+    def __init__(self, x, y, theta, radius, map_height, batch, group,
+                 body_color=(219, 84, 11), heading_color=(255, 255, 255), axle_color=(255, 255, 255)):
+        self.radius_ = radius
+
+        draw_x, draw_y = x, map_height - y
+        heading_x, heading_y = self._heading_endpoint(x, y, theta, radius, map_height)
+        axle_x1, axle_y1, axle_x2, axle_y2 = self._axle_endpoints(x, y, theta, radius, map_height)
+
+        self.body_ = shapes.Circle(draw_x, draw_y, radius, color=body_color, batch=batch, group=group)
+        self.heading_ = shapes.Line(draw_x, draw_y, heading_x, heading_y, thickness=2,
+                                    color=heading_color, batch=batch, group=group)
+        self.axle_ = shapes.Line(axle_x1, axle_y1, axle_x2, axle_y2, thickness=2,
+                                 color=axle_color, batch=batch, group=group)
+
+    @staticmethod
+    def _heading_endpoint(x, y, theta, radius, map_height):
+        """ Return the (drawing-frame) endpoint of the heading line, from the center
+        towards the edge of the circle in the direction theta. """
+        return x + radius * math.cos(theta), map_height - (y + radius * math.sin(theta))
+
+    @staticmethod
+    def _axle_endpoints(x, y, theta, radius, map_height):
+        """ Return the (drawing-frame) endpoints of the axle line, perpendicular to theta
+        and spanning the circle's diameter. """
+        axle_dx = radius * math.cos(theta + math.pi / 2)
+        axle_dy = radius * math.sin(theta + math.pi / 2)
+        return (x + axle_dx, map_height - (y + axle_dy),
+                x - axle_dx, map_height - (y - axle_dy))
+
+    def update(self, x, y, theta, map_height):
+        """ Move this shape to state [x, y, theta], reusing the same pyglet shapes instead
+        of creating new ones, so animating a path does not accumulate shapes in the batch.
+        """
+        draw_x, draw_y = x, map_height - y
+        self.body_.x, self.body_.y = draw_x, draw_y
+
+        heading_x, heading_y = self._heading_endpoint(x, y, theta, self.radius_, map_height)
+        self.heading_.x, self.heading_.y = draw_x, draw_y
+        self.heading_.x2, self.heading_.y2 = heading_x, heading_y
+
+        axle_x1, axle_y1, axle_x2, axle_y2 = self._axle_endpoints(x, y, theta, self.radius_, map_height)
+        self.axle_.x, self.axle_.y = axle_x1, axle_y1
+        self.axle_.x2, self.axle_.y2 = axle_x2, axle_y2
 
 class PlanDrawer(pyglet.window.Window):
     def __init__(self,
@@ -400,6 +458,48 @@ class PlanDrawer(pyglet.window.Window):
         budget_exhausted = planner.max_number_nodes() or planner.max_planning_time_reached()
 
         return not budget_exhausted
+
+    def animate_differential_drive_path(self, path: list[tuple[float, float, float]],
+                                         robot_radius: float, fps: float):
+        """ Animate a differential drive robot moving along path, drawing only the final
+        path followed rather than the tree growth. Whatever is already on this window's
+        batch (e.g. the tree and path drawn by draw() or draw_final()) stays visible as a
+        static background, with the moving robot drawn on top of it.
+
+        Args:
+            path (list): chronological list of [x, y, theta] states, from state_init to
+            state_goal, e.g. built by reversing and prepending state_init to the list
+            returned by RRTPlanner.path()/plan() (which is ordered from state_goal back
+            towards state_init, and excludes state_init itself).
+            robot_radius (float): radius of the circle used to draw the robot footprint.
+            fps (float): number of path states drawn per second.
+        """
+        if not path:
+            return
+
+        seconds_per_frame = 1.0 / fps
+        robot_shape = None
+
+        for x, y, theta in path:
+            self.clear()
+
+            if robot_shape is None:
+                robot_shape = DifferentialDriveRobotShape(x, y, theta, robot_radius,
+                                                          self.map_height_, self.batch_, self.path_layer_)
+            else:
+                robot_shape.update(x, y, theta, self.map_height_)
+
+            self.batch_.draw()
+
+            # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
+            # Facilitates the dispatch of events
+            self.flip()
+            self.dispatch_events()
+
+            if self.stop_drawing_ == 1:
+                return
+
+            time.sleep(seconds_per_frame)
 
     def draw_final(self, planner : RRTPlanner, path : list[tuple[int, int]], path_cost : float):
         """ Draw the finished tree and path of a planner that has already been run to

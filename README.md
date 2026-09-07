@@ -78,7 +78,7 @@ A window with the loaded map opens first — close it to continue. A black pygle
 
 ```bash
 cd python-scripts
-python3 main_differential_drive.py [map] [goal_radius] [max_nodes] [x0] [y0] [xg] [yg] [max_planning_time] [robot_radius] [linear_velocity_max] [angular_velocity_max] [sampling_time]
+python3 main_differential_drive.py [map] [goal_radius] [max_nodes] [x0] [y0] [xg] [yg] [max_planning_time] [robot_radius] [linear_velocity_max] [angular_velocity_max] [sampling_time] [fps]
 ```
 
 | Argument | Description |
@@ -89,12 +89,13 @@ python3 main_differential_drive.py [map] [goal_radius] [max_nodes] [x0] [y0] [xg
 | `x0 y0` | Start `(x, y)` coordinates. Defaults to `30 30`. |
 | `xg yg` | Goal `(x, y)` coordinates. Defaults to `30 460`. |
 | `max_planning_time` | Optional maximum planning time in seconds. Defaults to `20`. |
-| `robot_radius` | Circular footprint radius used for collision checking. Defaults to `5`. |
+| `robot_radius` | Circular footprint radius, used both for collision checking and to draw the robot. Defaults to `5`. |
 | `linear_velocity_max` | Upper bound of the sampled linear velocity (lower bound is always `0`). Defaults to `20`. |
 | `angular_velocity_max` | Upper bound of the sampled angular velocity, symmetric around `0`. Defaults to `1`. |
 | `sampling_time` | Duration, in seconds, simulated per sampled control. Defaults to `1.0`. |
+| `fps` | States of the final path drawn per second when animating the robot. Defaults to `10`. |
 
-Every argument is optional and keeps its default when left out. Run `python3 main_differential_drive.py --help` to see the usage line. RRT plans fully first and its tree is drawn immediately — press `Esc` in that window to close it and start planning RRT*, whose finished tree and path are then drawn in a second window (press `Esc` there to close it).
+Every argument is optional and keeps its default when left out. Run `python3 main_differential_drive.py --help` to see the usage line. RRT plans fully first; its tree and path are drawn, then a differential-drive robot — a circle with a heading line and a perpendicular axle line, via `PlanDrawer.animate_differential_drive_path()` — animates along the found path at `fps` states per second. Press `Esc` in that window to close it and start planning RRT*, whose finished tree and path are drawn and animated the same way in a second window (press `Esc` there to close it).
 
 ---
 

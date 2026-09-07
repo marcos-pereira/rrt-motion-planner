@@ -125,12 +125,14 @@ Same arguments as `main.py` above, but every one of them is optional — any lef
 ## CLI Arguments (`main_differential_drive.py`)
 
 ```
-python3 main_differential_drive.py [map_name.png] [goal_radius] [max_nodes] [x_init] [y_init] [x_goal] [y_goal] [max_planning_time] [robot_radius] [linear_velocity_max] [angular_velocity_max] [sampling_time]
+python3 main_differential_drive.py [map_name.png] [goal_radius] [max_nodes] [x_init] [y_init] [x_goal] [y_goal] [max_planning_time] [robot_radius] [linear_velocity_max] [angular_velocity_max] [sampling_time] [fps]
 ```
 
-Plans for a `DifferentialDriveRobot` (state `[x, y, theta]`) instead of a point robot. Every argument is optional — any left out (or the whole command with no arguments at all) keeps its built-in default. Run `python3 main_differential_drive.py --help` for the defaults. RRT plans fully first and its tree is drawn immediately — press `Esc` in that window to close it and start planning RRT*, whose finished tree and path are then drawn in a second window (press `Esc` there to close it).
+Plans for a `DifferentialDriveRobot` (state `[x, y, theta]`) instead of a point robot. Every argument is optional — any left out (or the whole command with no arguments at all) keeps its built-in default. Run `python3 main_differential_drive.py --help` for the defaults. RRT plans fully first; its tree and path are drawn, then a differential-drive robot animates along the found path at `fps` states per second (`PlanDrawer.animate_differential_drive_path()`). Press `Esc` in that window to close it and start planning RRT*, whose finished tree and path are drawn and animated the same way in a second window (press `Esc` there to close it).
 
 Unlike `main.py`/`plan_then_draw.py`, tree expansion does not steer directly towards a sampled configuration: each RRT/RRT* iteration applies a randomly sampled `[linear_velocity, angular_velocity]` control to the nearest tree node for one simulated step (`DifferentialDriveRandomControlSteering`, built on `DifferentialDriveRobot`), following the kinodynamic RRT formulation in S. LaValle's *Planning Algorithms* (Section 5.3.1). The sampled configuration (drawn by `DifferentialDrivePoseSampler`) is only used to pick which existing tree node to extend from.
+
+The robot itself is drawn as a circle (its footprint, radius `robot_radius`) with a heading line from the center to the edge in the direction of travel, plus a perpendicular axle line spanning the diameter, representing the wheel axle — both defined by `DifferentialDriveRobotShape` in `PlanDrawer.py`.
 
 | Argument | Example | Description |
 |----------|---------|-------------|
@@ -142,10 +144,11 @@ Unlike `main.py`/`plan_then_draw.py`, tree expansion does not steer directly tow
 | `x_goal` | `30` | Goal x coordinate |
 | `y_goal` | `460` | Goal y coordinate |
 | `max_planning_time` | `20` | Optional maximum planning time in seconds |
-| `robot_radius` | `5` | Circular footprint radius used by `DifferentialDriveCollisionChecker` |
+| `robot_radius` | `5` | Circular footprint radius, used both by `DifferentialDriveCollisionChecker` and to draw the robot |
 | `linear_velocity_max` | `20` | Upper bound of the sampled linear velocity (lower bound is always `0`) |
 | `angular_velocity_max` | `1` | Upper bound of the sampled angular velocity, symmetric around `0` |
 | `sampling_time` | `1.0` | Duration, in seconds, simulated per sampled control |
+| `fps` | `10` | States of the final path drawn per second when animating the robot |
 
 ## Configuring Planner Parameters (`.env`)
 
