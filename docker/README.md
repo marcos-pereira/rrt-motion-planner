@@ -78,9 +78,9 @@ docker compose -f docker/docker-compose.yml --profile plan-then-draw up
 docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner \
   python3 main.py maze1.png 15 10 50000 40 40 700 550
 
-# Desktop — differential-drive robot (control-space sampled steering)
+# Desktop — differential-drive robot (control-space sampled steering), every argument specified
 docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner \
-  python3 main_differential_drive.py smile.png 20 20000 30 30 30 460
+  python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 1.0 10
 
 # Web visualizer — RRT (open http://localhost:8000)
 docker compose -f docker/docker-compose.yml --profile webvis up
@@ -144,11 +144,17 @@ The robot itself is drawn as a circle (its footprint, radius `robot_radius`) wit
 | `x_goal` | `30` | Goal x coordinate |
 | `y_goal` | `460` | Goal y coordinate |
 | `max_planning_time` | `20` | Optional maximum planning time in seconds |
-| `robot_radius` | `5` | Circular footprint radius, used both by `DifferentialDriveCollisionChecker` and to draw the robot |
+| `robot_radius` | `8` | Circular footprint radius, used both by `DifferentialDriveCollisionChecker` and to draw the robot |
 | `linear_velocity_max` | `20` | Upper bound of the sampled linear velocity (lower bound is always `0`) |
 | `angular_velocity_max` | `1` | Upper bound of the sampled angular velocity, symmetric around `0` |
 | `sampling_time` | `1.0` | Duration, in seconds, simulated per sampled control |
 | `fps` | `10` | States of the final path drawn per second when animating the robot |
+
+Example command with every argument specified (values shown are the built-in defaults):
+
+```bash
+python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 1.0 10
+```
 
 ## Configuring Planner Parameters (`.env`)
 

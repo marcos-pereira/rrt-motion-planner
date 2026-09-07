@@ -89,13 +89,19 @@ python3 main_differential_drive.py [map] [goal_radius] [max_nodes] [x0] [y0] [xg
 | `x0 y0` | Start `(x, y)` coordinates. Defaults to `30 30`. |
 | `xg yg` | Goal `(x, y)` coordinates. Defaults to `30 460`. |
 | `max_planning_time` | Optional maximum planning time in seconds. Defaults to `20`. |
-| `robot_radius` | Circular footprint radius, used both for collision checking and to draw the robot. Defaults to `5`. |
+| `robot_radius` | Circular footprint radius, used both for collision checking and to draw the robot. Defaults to `8`. |
 | `linear_velocity_max` | Upper bound of the sampled linear velocity (lower bound is always `0`). Defaults to `20`. |
 | `angular_velocity_max` | Upper bound of the sampled angular velocity, symmetric around `0`. Defaults to `1`. |
 | `sampling_time` | Duration, in seconds, simulated per sampled control. Defaults to `1.0`. |
 | `fps` | States of the final path drawn per second when animating the robot. Defaults to `10`. |
 
 Every argument is optional and keeps its default when left out. Run `python3 main_differential_drive.py --help` to see the usage line. RRT plans fully first; its tree and path are drawn, then a differential-drive robot — a circle with a heading line and a perpendicular axle line, via `PlanDrawer.animate_differential_drive_path()` — animates along the found path at `fps` states per second. Press `Esc` in that window to close it and start planning RRT*, whose finished tree and path are drawn and animated the same way in a second window (press `Esc` there to close it).
+
+Example command with every argument specified (values shown are the built-in defaults):
+
+```bash
+python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 1.0 10
+```
 
 ---
 
