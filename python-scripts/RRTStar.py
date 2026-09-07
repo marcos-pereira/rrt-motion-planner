@@ -12,6 +12,7 @@ import copy
 
 import numpy as np
 from RRTPlanner import RRTPlanner
+from CollisionChecker import CollisionChecker
 from RealVectorState import RealVectorState
 from Sampler import Sampler
 from State import State
@@ -30,7 +31,7 @@ class RRTStar(RRTPlanner):
                  nearest_neighbor_eta,
                  gamma_rrt,
                  nearest_neighbor_radius,
-                 scene_map,
+                 collision_checker: CollisionChecker,
                  max_num_nodes,
                  max_planning_time=None):
         """ Return RRTStar planner.
@@ -47,7 +48,8 @@ class RRTStar(RRTPlanner):
             nearest_neighbor_eta (double) : Gain used to determine radius of ball for nearest neighbors.
             gamma_rrt (_type_): Gain used to determine radius of ball for nearest neighbors.
             nearest_neighbor_radius (double): this parameter is not being used and will not take effect.
-            scene_map (numpy matrix): Map of the scene or configuration space where 0 indicate free space and 1 indicate obstacle.
+            collision_checker (CollisionChecker): the collision checking strategy used to
+            check if a state is in collision with the obstacles of the state space.
             max_num_nodes (_type_): Maximum number of nodes in the tree.
             max_planning_time (float): the maximum time in seconds that plan() may run, or
             None to only bound the search by max_num_nodes.
@@ -58,7 +60,7 @@ class RRTStar(RRTPlanner):
                          steer_delta,
                          steer,
                          sampler,
-                         scene_map,
+                         collision_checker,
                          max_num_nodes,
                          max_planning_time)
         

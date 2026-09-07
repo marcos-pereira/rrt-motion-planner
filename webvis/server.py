@@ -19,6 +19,7 @@ from RRT import RRT
 from RRTStar import RRTStar
 from SimpleDeltaSteering import SimpleDeltaSteering
 from Cartesian2DSampler import Cartesian2DSampler
+from Cartesian2DCollisionChecker import Cartesian2DCollisionChecker
 from RealVectorState import RealVectorState
 
 app = FastAPI(title="RRT Web Visualizer")
@@ -72,7 +73,8 @@ def compute_plan(
 
             steer = SimpleDeltaSteering()
             sampler = Cartesian2DSampler(0, map_width, 0, map_height)
-            rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), steer, sampler, scene_map, num_nodes, max_planning_time)
+            collision_checker = Cartesian2DCollisionChecker(scene_map)
+            rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), steer, sampler, collision_checker, num_nodes, max_planning_time)
 
             # Drive the loop here instead of calling rrt.plan(), so the deadline is
             # enforced by this request's own wall-clock check after every single
@@ -163,12 +165,13 @@ def stream_rrtstar(
         x_goal = RealVectorState((xg, yg))
         steer = SimpleDeltaSteering()
         sampler = Cartesian2DSampler(0, map_width, 0, map_height)
+        collision_checker = Cartesian2DCollisionChecker(scene_map)
 
         rrtstar = RRTStar(
             x_init, x_goal, goal_radius, int(steer_delta), steer, sampler,
             eta, gamma_rrt,
             20,      # nearest_neighbor_radius — unused per docstring
-            scene_map, num_nodes,
+            collision_checker, num_nodes,
             max_planning_time,
         )
 

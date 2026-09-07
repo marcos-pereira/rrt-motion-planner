@@ -14,6 +14,7 @@ import numpy as np
 from rtree import index
 from scipy.spatial import cKDTree
 
+from CollisionChecker import CollisionChecker
 from RealVectorState import RealVectorState
 from Sampler import Sampler
 from State import State
@@ -29,7 +30,7 @@ class RRTPlanner(ABC):
                  steer_delta,
                  steer: Steer,
                  sampler: Sampler,
-                 scene_map,
+                 collision_checker: CollisionChecker,
                  max_num_nodes,
                  max_planning_time=None):
         """ Return RRTPlanner object. These planners were implement or are inspired by the
@@ -50,7 +51,8 @@ class RRTPlanner(ABC):
             towards a new sampled node when expanding the tree.
             sampler (Sampler): the sampling strategy used to draw random configurations
             from the configuration space when expanding the tree.
-            scene_map (numpy matrix): the scene map where 0 indicate free space and 1 indicate obstacles.
+            collision_checker (CollisionChecker): the collision checking strategy used to
+            check if a state is in collision with the obstacles of the state space.
             max_num_nodes (int): the maximum number of nodes to run the planner.
             max_planning_time (float): the maximum time in seconds to run plan(), or None to
             only bound the search by max_num_nodes.
@@ -61,12 +63,10 @@ class RRTPlanner(ABC):
         self.steer_delta_ = steer_delta
         self.steer_ = steer
         self.sampler_ = sampler
+        self.collision_checker_ = collision_checker
         self.max_num_nodes_ = max_num_nodes
         self.max_planning_time_ = max_planning_time
-        self.scene_map_ = scene_map
 
-        self.map_height_, self.map_width_ = self.scene_map_.shape
-        
         # interleaved True: requires coordinates as [xmin ymin, xmax ymax]
         # See: https://rtree.readthedocs.io/en/latest/class.html#rtree.index.Property
         # index.Property: inherits some instation properties:
@@ -107,11 +107,7 @@ class RRTPlanner(ABC):
         # where each node has a pointer to its parent node.
         self.node_to_tree_node_ = dict()
         self.node_to_tree_node_[self.state_init_.get_value()] = self.tree_nodes_[-1]
-        
-        ## Used to detect collisions with obstacles
-        self.ones_in_drawing_ = np.where(self.scene_map_ == 1)
-        self.obstacles_coordinates_ = set(zip(self.ones_in_drawing_[1], self.ones_in_drawing_[0]))
-        
+
         ## Initialize path to goal empty
         self.path_ = list()
         
@@ -359,10 +355,10 @@ class RRTPlanner(ABC):
         x_rand = self.sampler_.get_sample()
 
         # Sample until no collision occurs
-        while x_rand in self.obstacles_coordinates_:
+        while self.collision_checker_.collision(x_rand):
             x_rand = self.sampler_.get_sample()
 
-        return RealVectorState(x_rand)
+        return x_rand
     
     def cost_to_node(self, node: tuple[int, int]) -> float:
         """ Return the cost from initial node in the tree to the node.
@@ -381,8 +377,7 @@ class RRTPlanner(ABC):
         return cost
 
     def collision(self, node):
-        """ Check if node is in collision. First the node is converted to integers
-        because the configuration space is discretized into integers.
+        """ Check if node is in collision.
 
         Args:
             node (tuple): The node to check if collides with obstacles.
@@ -390,11 +385,7 @@ class RRTPlanner(ABC):
         Returns:
             bool: True if in collision, false otherwise.
         """
-        node_integers = tuple(int(element) for element in node)
-        if node_integers in self.obstacles_coordinates_:
-            return True
-        else:
-            return False
+        return self.collision_checker_.collision(RealVectorState(node))
         
     def insert_node_to_tree(self, node, node_id=0):
         """ Insert node to rrt_tree node tree.

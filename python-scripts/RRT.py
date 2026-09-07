@@ -9,6 +9,7 @@
 # marcos-pereira (https://github.com/marcos-pereira)
 
 from RRTPlanner import RRTPlanner
+from CollisionChecker import CollisionChecker
 from RealVectorState import RealVectorState
 from Sampler import Sampler
 from State import State
@@ -23,7 +24,7 @@ class RRT(RRTPlanner):
                  steer_delta,
                  steer: Steer,
                  sampler: Sampler,
-                 scene_map,
+                 collision_checker: CollisionChecker,
                  max_num_nodes,
                  max_planning_time=None):
         """Return an RRT planner object that plans by running the method run() or that
@@ -40,8 +41,8 @@ class RRT(RRTPlanner):
             towards the new node being added.
             sampler (Sampler): the sampling strategy used to draw random configurations
             from the configuration space.
-            scene_map (numpy matrix): the binary matrix where 0 indicate free space and 1
-            indicate an obstacle.
+            collision_checker (CollisionChecker): the collision checking strategy used to
+            check if a state is in collision with the obstacles of the state space.
             max_num_nodes (_type_): maximum number of nodes to be sampled. The planner stops
             when this number is reached.
             max_planning_time (float): the maximum time in seconds that plan() may run, or
@@ -53,7 +54,7 @@ class RRT(RRTPlanner):
                          steer_delta,
                          steer,
                          sampler,
-                         scene_map,
+                         collision_checker,
                          max_num_nodes,
                          max_planning_time)
         
