@@ -13,6 +13,7 @@ import copy
 import numpy as np
 from RRTPlanner import RRTPlanner
 from RealVectorState import RealVectorState
+from Sampler import Sampler
 from State import State
 from Steer import Steer
 from sklearn.neighbors import NearestNeighbors
@@ -25,6 +26,7 @@ class RRTStar(RRTPlanner):
                  goal_radius,
                  steer_delta,
                  steer: Steer,
+                 sampler: Sampler,
                  nearest_neighbor_eta,
                  gamma_rrt,
                  nearest_neighbor_radius,
@@ -40,6 +42,8 @@ class RRTStar(RRTPlanner):
             steer_delta (_type_): Value used to steer toward the sampled configurations.
             steer (Steer): the steering strategy used to move from a node in the tree
             towards the sampled configurations.
+            sampler (Sampler): the sampling strategy used to draw random configurations
+            from the configuration space.
             nearest_neighbor_eta (double) : Gain used to determine radius of ball for nearest neighbors.
             gamma_rrt (_type_): Gain used to determine radius of ball for nearest neighbors.
             nearest_neighbor_radius (double): this parameter is not being used and will not take effect.
@@ -53,6 +57,7 @@ class RRTStar(RRTPlanner):
                          goal_radius,
                          steer_delta,
                          steer,
+                         sampler,
                          scene_map,
                          max_num_nodes,
                          max_planning_time)

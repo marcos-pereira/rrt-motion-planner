@@ -14,6 +14,7 @@ from rtree import index
 from RRT import RRT
 from RRTStar import RRTStar
 from SimpleDeltaSteering import SimpleDeltaSteering
+from Cartesian2DSampler import Cartesian2DSampler
 from Map import load_map
 from RealVectorState import RealVectorState
 import sys
@@ -33,11 +34,15 @@ def main():
 
     steer = SimpleDeltaSteering()
 
+    map_height, map_width = scene_map.shape
+    sampler = Cartesian2DSampler(0, map_width, 0, map_height)
+
     rrt_planner = RRT(x_init,
                     x_goal,
                     goal_radius,
                     steer_delta,
                     steer,
+                    sampler,
                     scene_map,
                     num_nodes,
                     max_planning_time)
@@ -55,6 +60,7 @@ def main():
                     goal_radius,
                     steer_delta,
                     steer,
+                    sampler,
                     eta_rrt,
                     gamma_rrt,
                     near_radius,

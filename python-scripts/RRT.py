@@ -10,6 +10,7 @@
 
 from RRTPlanner import RRTPlanner
 from RealVectorState import RealVectorState
+from Sampler import Sampler
 from State import State
 from Steer import Steer
 from TreeNode import TreeNode
@@ -21,6 +22,7 @@ class RRT(RRTPlanner):
                  goal_radius,
                  steer_delta,
                  steer: Steer,
+                 sampler: Sampler,
                  scene_map,
                  max_num_nodes,
                  max_planning_time=None):
@@ -36,6 +38,8 @@ class RRT(RRTPlanner):
             for each map.
             steer (Steer): the steering strategy used to move from a node in the tree
             towards the new node being added.
+            sampler (Sampler): the sampling strategy used to draw random configurations
+            from the configuration space.
             scene_map (numpy matrix): the binary matrix where 0 indicate free space and 1
             indicate an obstacle.
             max_num_nodes (_type_): maximum number of nodes to be sampled. The planner stops
@@ -48,6 +52,7 @@ class RRT(RRTPlanner):
                          goal_radius,
                          steer_delta,
                          steer,
+                         sampler,
                          scene_map,
                          max_num_nodes,
                          max_planning_time)

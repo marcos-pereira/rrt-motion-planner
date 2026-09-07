@@ -11,11 +11,11 @@
 import time
 from abc import ABC, abstractmethod
 import numpy as np
-from random_config import random
 from rtree import index
 from scipy.spatial import cKDTree
 
 from RealVectorState import RealVectorState
+from Sampler import Sampler
 from State import State
 from Steer import Steer
 from TreeBuilder import TreeBuilder
@@ -28,6 +28,7 @@ class RRTPlanner(ABC):
                  goal_radius,
                  steer_delta,
                  steer: Steer,
+                 sampler: Sampler,
                  scene_map,
                  max_num_nodes,
                  max_planning_time=None):
@@ -47,6 +48,8 @@ class RRTPlanner(ABC):
             towards a new sampled node.
             steer (Steer): the steering strategy used to move from a node in the tree
             towards a new sampled node when expanding the tree.
+            sampler (Sampler): the sampling strategy used to draw random configurations
+            from the configuration space when expanding the tree.
             scene_map (numpy matrix): the scene map where 0 indicate free space and 1 indicate obstacles.
             max_num_nodes (int): the maximum number of nodes to run the planner.
             max_planning_time (float): the maximum time in seconds to run plan(), or None to
@@ -57,6 +60,7 @@ class RRTPlanner(ABC):
         self.goal_radius_ = goal_radius
         self.steer_delta_ = steer_delta
         self.steer_ = steer
+        self.sampler_ = sampler
         self.max_num_nodes_ = max_num_nodes
         self.max_planning_time_ = max_planning_time
         self.scene_map_ = scene_map
@@ -234,23 +238,6 @@ class RRTPlanner(ABC):
 
         return False
 
-    def sample_space(self, x_max, y_max):
-        """ Sample the configuration space with limits x_max and y_max.
-
-        Args:
-            x_max (int): the maximum x coordinate.
-            y_max (int): the maximum y coordinate.
-
-        Returns:
-            tuple: the sampled tuple configuration.
-        """
-        x = random.randint(0, x_max)
-        y = random.randint(0, y_max)
-
-        x_rand = (x, y)
-
-        return x_rand
-    
     def nodes_distance(self, node1: tuple[int, int], node2: tuple[int, int]) -> float:
         """ Returns the distance between node1 and node2.
 
@@ -369,11 +356,11 @@ class RRTPlanner(ABC):
             State: the configuration in the configuration free space.
         """
         ## Sample configuration in space
-        x_rand = self.sample_space(self.map_width_, self.map_height_)
+        x_rand = self.sampler_.get_sample()
 
         # Sample until no collision occurs
         while x_rand in self.obstacles_coordinates_:
-            x_rand = self.sample_space(self.map_width_, self.map_height_)
+            x_rand = self.sampler_.get_sample()
 
         return RealVectorState(x_rand)
     
