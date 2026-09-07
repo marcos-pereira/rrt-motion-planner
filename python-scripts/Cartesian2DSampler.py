@@ -10,6 +10,7 @@
 
 from random_config import random
 from Sampler import Sampler
+from RealVectorState import RealVectorState
 
 class Cartesian2DSampler(Sampler):
     """ Sampler that draws uniform random points in a 2D Cartesian space bounded
@@ -30,15 +31,15 @@ class Cartesian2DSampler(Sampler):
         self.y_min_ = y_min
         self.y_max_ = y_max
 
-    def get_sample(self) -> tuple:
+    def get_sample(self) -> RealVectorState:
         """ Return a uniformly sampled (x, y) point within the bounds of this sampler.
 
         Returns:
-            tuple: the sampled (x, y) configuration.
+            RealVectorState: the sampled (x, y) configuration.
         """
         x = random.randint(self.x_min_, self.x_max_)
         y = random.randint(self.y_min_, self.y_max_)
 
-        x_rand = (x, y)
+        x_rand = RealVectorState((x, y))
 
         return x_rand

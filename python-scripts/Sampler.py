@@ -10,13 +10,15 @@
 
 from abc import ABC, abstractmethod
 
+from State import State
+
 
 class Sampler(ABC):
     @abstractmethod
-    def get_sample(self) -> tuple:
+    def get_sample(self) -> State:
         """ Return a sampled configuration from the space this sampler draws from.
 
         Returns:
-            tuple: the sampled configuration.
+            State: the sampled configuration.
         """
         pass
