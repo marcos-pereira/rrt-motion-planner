@@ -9,7 +9,8 @@
 # marcos-pereira (https://github.com/marcos-pereira)
 
 from RRTPlanner import RRTPlanner
-from State import State, RealVectorState
+from RealVectorState import RealVectorState
+from State import State
 from Steer import Steer
 from TreeNode import TreeNode
 

@@ -12,7 +12,8 @@ import copy
 
 import numpy as np
 from RRTPlanner import RRTPlanner
-from State import State, RealVectorState
+from RealVectorState import RealVectorState
+from State import State
 from Steer import Steer
 from sklearn.neighbors import NearestNeighbors
 from TreeNode import TreeNode

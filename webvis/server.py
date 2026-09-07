@@ -18,7 +18,7 @@ from Map import load_map
 from RRT import RRT
 from RRTStar import RRTStar
 from SimpleDeltaSteering import SimpleDeltaSteering
-from State import RealVectorState
+from RealVectorState import RealVectorState
 
 app = FastAPI(title="RRT Web Visualizer")
 

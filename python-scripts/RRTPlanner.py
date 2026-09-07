@@ -15,7 +15,8 @@ from random_config import random
 from rtree import index
 from scipy.spatial import cKDTree
 
-from State import State, RealVectorState
+from RealVectorState import RealVectorState
+from State import State
 from Steer import Steer
 from TreeBuilder import TreeBuilder
 from TreeNode import TreeNode
