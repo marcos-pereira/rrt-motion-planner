@@ -61,6 +61,8 @@ Each service has its own profile so only the requested one starts — profiles n
 | `webvis` | `rrt-webvis` | `server.py` (uvicorn) | PixiJS web visualizer — RRT at http://localhost:8000 |
 | `webvis-rrtstar` | `rrt-webvis` | `server.py` (uvicorn) | Same server as `webvis` — RRT* at http://localhost:8000/rrtstar.html |
 
+`main_differential_drive.py` has no dedicated profile yet — run it ad hoc inside the `rrt-planner` container under the `desktop` profile (see Examples below).
+
 ## Examples
 
 All commands from the project root.
@@ -75,6 +77,10 @@ docker compose -f docker/docker-compose.yml --profile plan-then-draw up
 # Desktop — custom map and arguments
 docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner \
   python3 main.py maze1.png 15 10 50000 40 40 700 550
+
+# Desktop — differential-drive robot (control-space sampled steering)
+docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner \
+  python3 main_differential_drive.py smile.png 20 20000 30 30 30 460
 
 # Web visualizer — RRT (open http://localhost:8000)
 docker compose -f docker/docker-compose.yml --profile webvis up
@@ -115,6 +121,31 @@ python3 plan_then_draw.py [map_name.png] [steer_step_size] [goal_radius] [max_no
 ```
 
 Same arguments as `main.py` above, but every one of them is optional — any left out (or the whole command with no arguments at all) keeps its built-in default. Run `python3 plan_then_draw.py --help` for the defaults.
+
+## CLI Arguments (`main_differential_drive.py`)
+
+```
+python3 main_differential_drive.py [map_name.png] [goal_radius] [max_nodes] [x_init] [y_init] [x_goal] [y_goal] [max_planning_time] [robot_radius] [linear_velocity_max] [angular_velocity_max] [sampling_time]
+```
+
+Plans for a `DifferentialDriveRobot` (state `[x, y, theta]`) instead of a point robot. Every argument is optional — any left out (or the whole command with no arguments at all) keeps its built-in default. Run `python3 main_differential_drive.py --help` for the defaults. Like `plan_then_draw.py`, RRT and RRT* each plan fully first, then the finished tree and path are drawn.
+
+Unlike `main.py`/`plan_then_draw.py`, tree expansion does not steer directly towards a sampled configuration: each RRT/RRT* iteration applies a randomly sampled `[linear_velocity, angular_velocity]` control to the nearest tree node for one simulated step (`DifferentialDriveRandomControlSteering`, built on `DifferentialDriveRobot`), following the kinodynamic RRT formulation in S. LaValle's *Planning Algorithms* (Section 5.3.1). The sampled configuration (drawn by `DifferentialDrivePoseSampler`) is only used to pick which existing tree node to extend from.
+
+| Argument | Example | Description |
+|----------|---------|-------------|
+| `map_name.png` | `smile.png` | Map image file (must be in `python-scripts/`) |
+| `goal_radius` | `20` | Goal ball radius in pixels |
+| `max_nodes` | `20000` | Maximum nodes in the tree |
+| `x_init` | `30` | Start x coordinate |
+| `y_init` | `30` | Start y coordinate |
+| `x_goal` | `30` | Goal x coordinate |
+| `y_goal` | `460` | Goal y coordinate |
+| `max_planning_time` | `20` | Optional maximum planning time in seconds |
+| `robot_radius` | `5` | Circular footprint radius used by `DifferentialDriveCollisionChecker` |
+| `linear_velocity_max` | `20` | Upper bound of the sampled linear velocity (lower bound is always `0`) |
+| `angular_velocity_max` | `1` | Upper bound of the sampled angular velocity, symmetric around `0` |
+| `sampling_time` | `1.0` | Duration, in seconds, simulated per sampled control |
 
 ## Configuring Planner Parameters (`.env`)
 

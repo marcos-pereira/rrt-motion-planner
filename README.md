@@ -5,8 +5,9 @@ Implementations of RRT and RRT* sampling-based motion planners in Python, with b
 ## Quick test with browser visualizer using docker
 
 ```bash
-# 1 — Build images (webvis layer depends on the base image)
-docker compose -f docker/docker-compose.yml build rrt-planner rrt-webvis
+# 1 — Build images in order (webvis layer depends on the base image)
+docker compose -f docker/docker-compose.yml build rrt-planner
+docker compose -f docker/docker-compose.yml build rrt-webvis
 
 # 2a — Run the RRT web visualizer, then open http://localhost:8000
 docker compose -f docker/docker-compose.yml --profile webvis up
@@ -43,7 +44,7 @@ pip install -r python-scripts/requirements.txt
 
 ```bash
 cd python-scripts
-python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg> [max_planning_time]
+python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg> [max_planning_time] [gamma_rrt] [eta_rrt] [near_radius]
 ```
 
 | Argument | Description |
@@ -55,6 +56,9 @@ python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg
 | `x0 y0` | Start coordinates |
 | `xg yg` | Goal coordinates |
 | `max_planning_time` | Optional maximum planning time in seconds. Omit for no time limit. |
+| `gamma_rrt` | Optional RRT* nearest-neighbor gain. Defaults to `1000`. |
+| `eta_rrt` | Optional RRT* nearest-neighbor radius cap. Defaults to `20`. |
+| `near_radius` | Optional RRT* `nearest_neighbor_radius` — accepted for backward compatibility but not actually used by the algorithm. Defaults to `20`. |
 
 Example commands:
 
@@ -65,6 +69,32 @@ python3 main.py maze1.png      15 10 100000  40  40  750 750
 ```
 
 A window with the loaded map opens first — close it to continue. A black pyglet window will open. Press `s` to start planning with RRT. Press `Esc` to close and open the RRT* window. Press `s` again to start RRT*.
+
+---
+
+## Running the differential-drive planner
+
+`main_differential_drive.py` plans for a `DifferentialDriveRobot`, whose state is `[x, y, theta]` instead of just `[x, y]`. Rather than steering directly towards a sampled configuration, each RRT/RRT* extension applies a randomly sampled `[linear_velocity, angular_velocity]` control to the nearest tree node for one simulated step (`DifferentialDriveRandomControlSteering`), following the kinodynamic RRT formulation in S. LaValle's *Planning Algorithms* (Section 5.3.1); the sampled configuration is only used to pick which existing tree node to extend from.
+
+```bash
+cd python-scripts
+python3 main_differential_drive.py [map] [goal_radius] [max_nodes] [x0] [y0] [xg] [yg] [max_planning_time] [robot_radius] [linear_velocity_max] [angular_velocity_max] [sampling_time]
+```
+
+| Argument | Description |
+|---|---|
+| `map` | PNG map file in `python-scripts/`. Defaults to `smile.png`. |
+| `goal_radius` | Goal ball radius in pixels. Defaults to `20`. |
+| `max_nodes` | Maximum tree nodes. Defaults to `20000`. |
+| `x0 y0` | Start `(x, y)` coordinates. Defaults to `30 30`. |
+| `xg yg` | Goal `(x, y)` coordinates. Defaults to `30 460`. |
+| `max_planning_time` | Optional maximum planning time in seconds. Defaults to `20`. |
+| `robot_radius` | Circular footprint radius used for collision checking. Defaults to `5`. |
+| `linear_velocity_max` | Upper bound of the sampled linear velocity (lower bound is always `0`). Defaults to `20`. |
+| `angular_velocity_max` | Upper bound of the sampled angular velocity, symmetric around `0`. Defaults to `1`. |
+| `sampling_time` | Duration, in seconds, simulated per sampled control. Defaults to `1.0`. |
+
+Every argument is optional and keeps its default when left out. Run `python3 main_differential_drive.py --help` to see the usage line. Like `plan_then_draw.py`, RRT and RRT* each plan fully first — no keypress needed — then the finished tree and path are drawn.
 
 ---
 
@@ -100,6 +130,9 @@ docker compose -f docker/docker-compose.yml --profile desktop up
 
 # Plan-then-draw mode
 docker compose -f docker/docker-compose.yml --profile plan-then-draw up
+
+# Differential-drive planner (no dedicated profile yet — run ad hoc in the rrt-planner container)
+docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner python3 main_differential_drive.py
 
 # Web visualizer (RRT) — open http://localhost:8000
 docker compose -f docker/docker-compose.yml --profile webvis up
