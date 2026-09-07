@@ -128,7 +128,7 @@ Same arguments as `main.py` above, but every one of them is optional — any lef
 python3 main_differential_drive.py [map_name.png] [goal_radius] [max_nodes] [x_init] [y_init] [x_goal] [y_goal] [max_planning_time] [robot_radius] [linear_velocity_max] [angular_velocity_max] [sampling_time]
 ```
 
-Plans for a `DifferentialDriveRobot` (state `[x, y, theta]`) instead of a point robot. Every argument is optional — any left out (or the whole command with no arguments at all) keeps its built-in default. Run `python3 main_differential_drive.py --help` for the defaults. Like `plan_then_draw.py`, RRT and RRT* each plan fully first, then the finished tree and path are drawn.
+Plans for a `DifferentialDriveRobot` (state `[x, y, theta]`) instead of a point robot. Every argument is optional — any left out (or the whole command with no arguments at all) keeps its built-in default. Run `python3 main_differential_drive.py --help` for the defaults. RRT plans fully first and its tree is drawn immediately — press `Esc` in that window to close it and start planning RRT*, whose finished tree and path are then drawn in a second window (press `Esc` there to close it).
 
 Unlike `main.py`/`plan_then_draw.py`, tree expansion does not steer directly towards a sampled configuration: each RRT/RRT* iteration applies a randomly sampled `[linear_velocity, angular_velocity]` control to the nearest tree node for one simulated step (`DifferentialDriveRandomControlSteering`, built on `DifferentialDriveRobot`), following the kinodynamic RRT formulation in S. LaValle's *Planning Algorithms* (Section 5.3.1). The sampled configuration (drawn by `DifferentialDrivePoseSampler`) is only used to pick which existing tree node to extend from.
 

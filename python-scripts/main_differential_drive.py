@@ -127,6 +127,10 @@ def main():
     plan_drawer_rrt = PlanDrawer(map_name, map_width, map_height, font_size)
     plan_drawer_rrt.draw(rrt_planner.tree_builder_, x_goal, goal_radius, path)
 
+    # Wait for the user to inspect the RRT tree and press Escape before planning RRT*.
+    while plan_drawer_rrt.stop_drawing_ == 0:
+        plan_drawer_rrt.dispatch_events()
+
     rrtstar_planner = RRTStar(x_init,
                     x_goal,
                     goal_radius,
@@ -145,10 +149,9 @@ def main():
     plan_drawer_rrtstar = PlanDrawer(map_name, map_width, map_height, font_size)
     plan_drawer_rrtstar.draw_final(rrtstar_planner, path, path_cost)
 
-    # Keep both windows open (press escape in either to close it) instead of exiting
-    # immediately and closing them as soon as the trees are drawn.
-    while plan_drawer_rrt.stop_drawing_ == 0 or plan_drawer_rrtstar.stop_drawing_ == 0:
-        plan_drawer_rrt.dispatch_events()
+    # Keep the RRT* window open until Escape is pressed, instead of exiting immediately
+    # and closing it as soon as the tree is drawn.
+    while plan_drawer_rrtstar.stop_drawing_ == 0:
         plan_drawer_rrtstar.dispatch_events()
 
 

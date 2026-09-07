@@ -94,7 +94,7 @@ python3 main_differential_drive.py [map] [goal_radius] [max_nodes] [x0] [y0] [xg
 | `angular_velocity_max` | Upper bound of the sampled angular velocity, symmetric around `0`. Defaults to `1`. |
 | `sampling_time` | Duration, in seconds, simulated per sampled control. Defaults to `1.0`. |
 
-Every argument is optional and keeps its default when left out. Run `python3 main_differential_drive.py --help` to see the usage line. Like `plan_then_draw.py`, RRT and RRT* each plan fully first — no keypress needed — then the finished tree and path are drawn.
+Every argument is optional and keeps its default when left out. Run `python3 main_differential_drive.py --help` to see the usage line. RRT plans fully first and its tree is drawn immediately — press `Esc` in that window to close it and start planning RRT*, whose finished tree and path are then drawn in a second window (press `Esc` there to close it).
 
 ---
 
