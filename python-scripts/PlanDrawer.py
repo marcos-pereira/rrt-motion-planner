@@ -115,9 +115,15 @@ class PlanDrawer(pyglet.window.Window):
         
         ## Store lines
         self.lines_ = list()
-        
-        ## Store lines 
+
+        ## Store lines
         self.lines_rrtstar_ = dict()
+
+        ## Store the state_init/state_goal marker circles so they keep a live Python
+        ## reference after draw()/draw_final() return — pyglet shapes are deleted from
+        ## their batch as soon as they are garbage collected (ShapeBase.__del__), so a
+        ## shape kept only in a local variable disappears once its function returns.
+        self.markers_ = list()
 
         ## Store path to draw
         self.path_line_ = set()
@@ -212,13 +218,17 @@ class PlanDrawer(pyglet.window.Window):
                                         color=(255, 207, 88), 
                                         batch=self.batch_, 
                                         group=self.foreground_)
-            draw_x_goal = shapes.Circle(goal_node[0], 
-                                        self.map_height_-goal_node[1], 
-                                        radius=goal_radius, 
-                                        color=goal_color, 
-                                        batch=self.batch_, 
+            draw_x_goal = shapes.Circle(goal_node[0],
+                                        self.map_height_-goal_node[1],
+                                        radius=goal_radius,
+                                        color=goal_color,
+                                        batch=self.batch_,
                                         group=self.foreground_)
-            
+
+            # Keep these alive after draw() returns (see markers_'s docstring in __init__).
+            self.markers_.append(draw_x_init)
+            self.markers_.append(draw_x_goal)
+
             self.batch_.draw()
             
             # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
@@ -554,6 +564,10 @@ class PlanDrawer(pyglet.window.Window):
                                     color=(92, 214, 118),
                                     batch=self.batch_,
                                     group=self.foreground_)
+
+        # Keep these alive after draw_final() returns (see markers_'s docstring in __init__).
+        self.markers_.append(draw_x_init)
+        self.markers_.append(draw_x_goal)
 
         self.batch_.draw()
 

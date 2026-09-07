@@ -57,7 +57,7 @@ def main():
 
     # Radius of the circular footprint used by DifferentialDriveCollisionChecker and by
     # PlanDrawer.animate_differential_drive_path() to draw the robot.
-    robot_radius = 5.0
+    robot_radius = 8.0
 
     # States of the final path drawn per second by animate_differential_drive_path().
     fps = 10.0
