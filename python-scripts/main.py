@@ -17,6 +17,7 @@ from RRTStar import RRTStar
 from SimpleDeltaSteering import SimpleDeltaSteering
 from Map import load_map
 from PlanDrawer import PlanDrawer
+from State import RealVectorState
 import sys
 
 def main():
@@ -65,8 +66,8 @@ def main():
         elif i == 12:
             near_radius = float(arg)
 
-    init_node = (x_init, y_init)
-    goal_node = (x_goal, y_goal)
+    init_node = RealVectorState((x_init, y_init))
+    goal_node = RealVectorState((x_goal, y_goal))
     # goal_radius = 10
     # steer_delta = 15
     # num_nodes = 50000

@@ -17,6 +17,8 @@ sys.path.insert(0, str(MAPS_DIR))
 from Map import load_map
 from RRT import RRT
 from RRTStar import RRTStar
+from SimpleDeltaSteering import SimpleDeltaSteering
+from State import RealVectorState
 
 app = FastAPI(title="RRT Web Visualizer")
 
@@ -64,10 +66,11 @@ def compute_plan(
             except Exception:
                 raise HTTPException(status_code=400, detail=f"Failed to load map '{map_name}'.")
             map_height, map_width = scene_map.shape
-            x_init = (x0, y0)
-            x_goal = (xg, yg)
+            x_init = RealVectorState((x0, y0))
+            x_goal = RealVectorState((xg, yg))
 
-            rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), scene_map, num_nodes, max_planning_time)
+            steer = SimpleDeltaSteering()
+            rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), steer, scene_map, num_nodes, max_planning_time)
 
             # Drive the loop here instead of calling rrt.plan(), so the deadline is
             # enforced by this request's own wall-clock check after every single
@@ -77,10 +80,10 @@ def compute_plan(
             path, path_cost, stop_reason = [], float("inf"), "max_nodes"
 
             while True:
-                path_found_step, x_nearest, x_new = rrt.run_step()
+                path_found_step, state_nearest, state_new = rrt.run_step()
 
                 if path_found_step:
-                    path, path_cost = rrt.path(x_new)
+                    path, path_cost = rrt.path(state_new)
                     stop_reason = "goal_reached"
                     break
 
@@ -103,8 +106,8 @@ def compute_plan(
         "path": [list(p) for p in path],
         "map_width": map_width,
         "map_height": map_height,
-        "x_init": list(x_init),
-        "x_goal": list(x_goal),
+        "x_init": list(x_init.get_value()),
+        "x_goal": list(x_goal.get_value()),
         "goal_radius": goal_radius,
         "path_cost": path_cost if path_found else None,
         "node_count": len(edges) + 1,
@@ -154,11 +157,12 @@ def stream_rrtstar(
             finally:
                 os.chdir(original_dir)
 
-        x_init = (x0, y0)
-        x_goal = (xg, yg)
+        x_init = RealVectorState((x0, y0))
+        x_goal = RealVectorState((xg, yg))
+        steer = SimpleDeltaSteering()
 
         rrtstar = RRTStar(
-            x_init, x_goal, goal_radius, int(steer_delta),
+            x_init, x_goal, goal_radius, int(steer_delta), steer,
             eta, gamma_rrt,
             20,      # nearest_neighbor_radius — unused per docstring
             scene_map, num_nodes,
@@ -189,8 +193,8 @@ def stream_rrtstar(
                 # Rewiring updates parent pointers, so this always reflects the
                 # latest tree structure.
                 edges = [
-                    [list(node.get_parent().get_node_coordinates()),
-                     list(node.get_node_coordinates())]
+                    [list(node.get_parent().get_state().get_value()),
+                     list(node.get_state().get_value())]
                     for node in rrtstar.tree_nodes_
                     if node.get_parent() is not None
                 ]
@@ -210,8 +214,8 @@ def stream_rrtstar(
                     "node_count": rrtstar.node_count_,
                     "map_width": int(map_width),
                     "map_height": int(map_height),
-                    "x_init": list(x_init),
-                    "x_goal": list(x_goal),
+                    "x_init": list(x_init.get_value()),
+                    "x_goal": list(x_goal.get_value()),
                     "goal_radius": goal_radius,
                     "map_name": map_name,
                     "done": done,

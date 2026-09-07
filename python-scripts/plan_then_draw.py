@@ -18,6 +18,7 @@ from RRTStar import RRTStar
 from SimpleDeltaSteering import SimpleDeltaSteering
 from Map import load_map
 from PlanDrawer import PlanDrawer
+from State import RealVectorState
 
 def main():
 
@@ -74,8 +75,8 @@ def main():
         elif i == 12:
             near_radius = float(arg)
 
-    x_init = (x_init_x, x_init_y)
-    x_goal = (x_goal_x, x_goal_y)
+    x_init = RealVectorState((x_init_x, x_init_y))
+    x_goal = RealVectorState((x_goal_x, x_goal_y))
     font_size = 25
 
     scene_map = load_map(map_name, test=True)

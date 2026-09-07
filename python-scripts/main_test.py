@@ -15,12 +15,13 @@ from RRT import RRT
 from RRTStar import RRTStar
 from SimpleDeltaSteering import SimpleDeltaSteering
 from Map import load_map
+from State import RealVectorState
 import sys
 
 def main():
-    
-    x_init = (30, 30)
-    x_goal = (30, 460)
+
+    x_init = RealVectorState((30, 30))
+    x_goal = RealVectorState((30, 460))
     goal_radius = 10
     steer_delta = 15
     near_radius = 30
