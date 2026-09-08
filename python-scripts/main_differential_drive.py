@@ -136,7 +136,7 @@ def main():
                     goal_radius,
                     steer_delta,
                     steer,
-                    diff_drive_sampler,
+                    pose_sampler,
                     collision_checker,
                     num_nodes,
                     max_planning_time)
@@ -156,7 +156,7 @@ def main():
                     goal_radius,
                     steer_delta,
                     steer,
-                    diff_drive_sampler,
+                    pose_sampler,
                     eta_rrt,
                     gamma_rrt,
                     near_radius,
