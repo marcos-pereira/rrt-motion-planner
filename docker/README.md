@@ -70,6 +70,8 @@ Each service has its own profile so only the requested one starts — profiles n
 | `webvis-differential-drive` | `rrt-webvis` | `server.py` (uvicorn) | Same server as `webvis` — differential-drive RRT at http://localhost:8000/differential-drive.html |
 | `webvis-differential-drive-rrtstar` | `rrt-webvis` | `server.py` (uvicorn) | Same server as `webvis` — differential-drive RRT* at http://localhost:8000/differential-drive-rrtstar.html |
 
+> If a webvis page looks broken or out of date after an update (e.g. the map never loads), do a hard refresh (Ctrl+Shift+R / Cmd+Shift+R) to bypass a stale browser cache of its JS.
+
 ## Examples
 
 All commands from the project root.
