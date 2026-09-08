@@ -17,6 +17,7 @@ let mapWidth = 0;
 let mapHeight = 0;
 let canvasScale = 1;
 let placeMode = null; // null | 'start' | 'goal' — which point the next click sets
+let previewGeneration = 0; // guards against overlapping initPreview() calls (rapid map switches)
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
 const runBtn        = document.getElementById('run-btn');
@@ -28,6 +29,7 @@ const speedInput    = document.getElementById('speed');
 const speedLabel    = document.getElementById('speed-label');
 const canvasEl      = document.getElementById('canvas-container');
 const placeholder   = document.getElementById('placeholder');
+const placeholderText = placeholder.querySelector('p');
 const x0Input       = document.getElementById('x0');
 const y0Input       = document.getElementById('y0');
 const xgInput       = document.getElementById('xg');
@@ -78,7 +80,12 @@ function destroyApp() {
     if (!app) return;
     app.ticker.remove(animationStep);
     app.view.removeEventListener('click', onCanvasClick);
-    app.destroy(true, { children: true, texture: true });
+    // texture:false — the map sprite's texture is managed by PIXI.Assets; destroying
+    // it here (instead of via Assets.unload()) corrupts the Assets cache for future
+    // loads of the same map. renderTexture (tree-edge accumulation) is NOT
+    // Assets-managed, so it's destroyed explicitly below instead.
+    app.destroy(true, { children: true, texture: false });
+    if (renderTexture) renderTexture.destroy(true);
     app = renderTexture = edgeSprite = tempGraphics = overlayGraphics = null;
     previewActive = false;
     setPlaceMode(null);
@@ -92,50 +99,64 @@ function destroyApp() {
 // user can set start/goal either by clicking here or by typing coordinates,
 // before ever running the planner.
 async function initPreview() {
+    const myGeneration = ++previewGeneration;
     destroyApp();
+    placeholder.style.display = 'block';
+    placeholderText.textContent = 'Loading map...';
     setStatus('Ready — select a map and click Run.');
 
     const mapName = mapSelect.value;
-    let texture;
-    try {
-        texture = await PIXI.Assets.load(`/maps/${mapName}`);
-    } catch {
-        placeholder.style.display = 'block';
-        setStatus('⚠️ Could not load the selected map.');
+    if (!mapName) {
+        placeholderText.textContent = 'No map selected.';
         return;
     }
 
-    mapWidth = texture.width;
-    mapHeight = texture.height;
+    // Everything below can throw for reasons unrelated to the map fetch itself
+    // (e.g. WebGL unavailable when constructing the PIXI.Application) — wrapping
+    // the whole thing, not just the texture load, ensures a failure here always
+    // shows a clear message instead of leaving "Loading map..." stuck forever.
+    try {
+        const texture = await PIXI.Assets.load(`/maps/${mapName}`);
+        if (myGeneration !== previewGeneration) return; // superseded by a newer call
 
-    const containerW = canvasEl.clientWidth  || 800;
-    const containerH = canvasEl.clientHeight || 600;
-    canvasScale = Math.min(containerW / mapWidth, containerH / mapHeight, 1);
-    const canvasW = Math.floor(mapWidth  * canvasScale);
-    const canvasH = Math.floor(mapHeight * canvasScale);
+        mapWidth = texture.width;
+        mapHeight = texture.height;
 
-    app = new PIXI.Application({
-        width: canvasW,
-        height: canvasH,
-        backgroundColor: 0xF5F5F5,
-        antialias: true,
-    });
-    canvasEl.appendChild(app.view);
-    app.stage.scale.set(canvasScale);
+        const containerW = canvasEl.clientWidth  || 800;
+        const containerH = canvasEl.clientHeight || 600;
+        canvasScale = Math.min(containerW / mapWidth, containerH / mapHeight, 1);
+        const canvasW = Math.floor(mapWidth  * canvasScale);
+        const canvasH = Math.floor(mapHeight * canvasScale);
 
-    const mapSprite = new PIXI.Sprite(texture);
-    app.stage.addChild(mapSprite);
+        app = new PIXI.Application({
+            width: canvasW,
+            height: canvasH,
+            backgroundColor: 0xF5F5F5,
+            antialias: true,
+        });
+        canvasEl.appendChild(app.view);
+        app.stage.scale.set(canvasScale);
 
-    overlayGraphics = new PIXI.Graphics();
-    app.stage.addChild(overlayGraphics);
+        const mapSprite = new PIXI.Sprite(texture);
+        app.stage.addChild(mapSprite);
 
-    app.view.style.cursor = 'crosshair';
-    app.view.addEventListener('click', onCanvasClick);
+        overlayGraphics = new PIXI.Graphics();
+        app.stage.addChild(overlayGraphics);
 
-    placeholder.style.display = 'none';
-    previewActive = true;
-    planData = null;
-    updateMarkersFromInputs();
+        app.view.style.cursor = 'crosshair';
+        app.view.addEventListener('click', onCanvasClick);
+
+        placeholder.style.display = 'none';
+        previewActive = true;
+        planData = null;
+        updateMarkersFromInputs();
+    } catch (e) {
+        if (myGeneration !== previewGeneration) return; // superseded by a newer call
+        console.error('Failed to show the map preview:', e);
+        placeholder.style.display = 'block';
+        placeholderText.textContent = '⚠️ Could not load the map.';
+        setStatus(`⚠️ Could not load map: ${e.message || e}`);
+    }
 }
 
 function onCanvasClick(event) {

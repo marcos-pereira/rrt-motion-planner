@@ -6,6 +6,15 @@ let overlayGraphics = null; // path + start/goal circles
 let initPromise = null; // resolves when the canvas is ready
 let isRunning = false;
 
+// Preview state — shows the map + start/goal markers before any planning has run,
+// and lets the user click the canvas to set them instead of typing coordinates.
+let previewActive = false;
+let mapWidth = 0;
+let mapHeight = 0;
+let canvasScale = 1;
+let placeMode = null; // null | 'start' | 'goal' — which point the next click sets
+let previewGeneration = 0; // guards against overlapping initPreview() calls (rapid map switches)
+
 // ── DOM refs ───────────────────────────────────────────────────────────────
 const runBtn      = document.getElementById('run-btn');
 const stopBtn     = document.getElementById('stop-btn');
@@ -15,6 +24,14 @@ const batchInput  = document.getElementById('batch-size');
 const batchLabel  = document.getElementById('batch-label');
 const canvasEl    = document.getElementById('canvas-container');
 const placeholder = document.getElementById('placeholder');
+const placeholderText = placeholder.querySelector('p');
+const setStartBtn = document.getElementById('set-start-btn');
+const setGoalBtn  = document.getElementById('set-goal-btn');
+const x0Input      = document.getElementById('x0');
+const y0Input      = document.getElementById('y0');
+const xgInput      = document.getElementById('xg');
+const ygInput      = document.getElementById('yg');
+const goalRadiusInput = document.getElementById('goal-radius');
 
 // ── Startup ────────────────────────────────────────────────────────────────
 async function loadMapList() {
@@ -62,13 +79,134 @@ function getParams() {
 function destroyApp() {
     if (eventSource) { eventSource.close(); eventSource = null; }
     if (app) {
-        app.destroy(true, { children: true, texture: true });
+        app.view.removeEventListener('click', onCanvasClick);
+        // texture:false — the map sprite's texture is managed by PIXI.Assets;
+        // destroying it here (instead of via Assets.unload()) corrupts the Assets
+        // cache for future loads of the same map.
+        app.destroy(true, { children: true, texture: false });
         app = treeGraphics = overlayGraphics = null;
         const old = canvasEl.querySelector('canvas');
         if (old) old.remove();
     }
     initPromise = null;
     isRunning = false;
+    previewActive = false;
+    setPlaceMode(null);
+}
+
+// ── Preview (click-to-place start/goal) ───────────────────────────────────
+// Shows just the map and the start/goal markers — no tree, no path — so the
+// user can set start/goal either by clicking here or by typing coordinates,
+// before ever running the planner.
+async function initPreview() {
+    const myGeneration = ++previewGeneration;
+    destroyApp();
+    placeholder.style.display = 'block';
+    placeholderText.textContent = 'Loading map...';
+    setStatus('Ready — select a map and click Run.');
+
+    const mapName = mapSelect.value;
+    if (!mapName) {
+        placeholderText.textContent = 'No map selected.';
+        return;
+    }
+
+    // Everything below can throw for reasons unrelated to the map fetch itself
+    // (e.g. WebGL unavailable when constructing the PIXI.Application) — wrapping
+    // the whole thing, not just the texture load, ensures a failure here always
+    // shows a clear message instead of leaving "Loading map..." stuck forever.
+    try {
+        const texture = await PIXI.Assets.load(`/maps/${mapName}`);
+        if (myGeneration !== previewGeneration) return; // superseded by a newer call
+
+        mapWidth = texture.width;
+        mapHeight = texture.height;
+
+        const containerW = canvasEl.clientWidth  || 800;
+        const containerH = canvasEl.clientHeight || 600;
+        canvasScale = Math.min(containerW / mapWidth, containerH / mapHeight, 1);
+        const canvasW = Math.floor(mapWidth  * canvasScale);
+        const canvasH = Math.floor(mapHeight * canvasScale);
+
+        app = new PIXI.Application({
+            width: canvasW,
+            height: canvasH,
+            backgroundColor: 0xF5F5F5,
+            antialias: true,
+        });
+        canvasEl.appendChild(app.view);
+        app.stage.scale.set(canvasScale);
+
+        const mapSprite = new PIXI.Sprite(texture);
+        app.stage.addChild(mapSprite);
+
+        overlayGraphics = new PIXI.Graphics();
+        app.stage.addChild(overlayGraphics);
+
+        app.view.style.cursor = 'crosshair';
+        app.view.addEventListener('click', onCanvasClick);
+
+        placeholder.style.display = 'none';
+        previewActive = true;
+        updateMarkersFromInputs();
+    } catch (e) {
+        if (myGeneration !== previewGeneration) return; // superseded by a newer call
+        console.error('Failed to show the map preview:', e);
+        placeholder.style.display = 'block';
+        placeholderText.textContent = '⚠️ Could not load the map.';
+        setStatus(`⚠️ Could not load map: ${e.message || e}`);
+    }
+}
+
+function onCanvasClick(event) {
+    if (!placeMode) return;
+
+    const rect = app.view.getBoundingClientRect();
+    const clickX = (event.clientX - rect.left) / canvasScale;
+    const clickY = (event.clientY - rect.top) / canvasScale;
+    const mapX = Math.round(Math.min(Math.max(clickX, 0), mapWidth - 1));
+    const mapY = Math.round(Math.min(Math.max(clickY, 0), mapHeight - 1));
+
+    if (placeMode === 'start') {
+        x0Input.value = mapX;
+        y0Input.value = mapY;
+    } else {
+        xgInput.value = mapX;
+        ygInput.value = mapY;
+    }
+
+    updateMarkersFromInputs();
+    setPlaceMode(null);
+}
+
+function setPlaceMode(mode) {
+    // Clicking the already-active tool's button turns it back off.
+    placeMode = (placeMode === mode) ? null : mode;
+    setStartBtn.classList.toggle('active', placeMode === 'start');
+    setGoalBtn.classList.toggle('active', placeMode === 'goal');
+}
+
+function updateMarkersFromInputs() {
+    if (!overlayGraphics || !previewActive) return;
+
+    const x0 = parseFloat(x0Input.value) || 0;
+    const y0 = parseFloat(y0Input.value) || 0;
+    const xg = parseFloat(xgInput.value) || 0;
+    const yg = parseFloat(ygInput.value) || 0;
+    const goalRadius = parseInt(goalRadiusInput.value) || 10;
+
+    overlayGraphics.clear();
+    overlayGraphics.lineStyle(0);
+    overlayGraphics.beginFill(0x5CD676);
+    overlayGraphics.drawCircle(xg, yg, goalRadius);
+    overlayGraphics.endFill();
+    overlayGraphics.beginFill(0xFFCF58);
+    overlayGraphics.drawCircle(x0, y0, goalRadius);
+    overlayGraphics.endFill();
+}
+
+async function ensurePreview() {
+    if (!previewActive) await initPreview();
 }
 
 // ── Main flow ──────────────────────────────────────────────────────────────
@@ -96,6 +234,7 @@ async function run() {
         if (snap.error) {
             setStatus(`❌ ${snap.error}`);
             finish();
+            await initPreview();
             return;
         }
 
@@ -121,8 +260,10 @@ async function run() {
     };
 
     eventSource.onerror = () => {
-        if (isRunning) setStatus('❌ Stream error or connection closed.');
+        const wasRunning = isRunning;
+        if (wasRunning) setStatus('❌ Stream error or connection closed.');
         finish();
+        if (wasRunning) initPreview();
     };
 }
 
@@ -216,5 +357,24 @@ batchInput.addEventListener('input', () => {
 runBtn.addEventListener('click', run);
 stopBtn.addEventListener('click', stop);
 
+setStartBtn.addEventListener('click', async () => {
+    await ensurePreview();
+    setPlaceMode('start');
+});
+
+setGoalBtn.addEventListener('click', async () => {
+    await ensurePreview();
+    setPlaceMode('goal');
+});
+
+mapSelect.addEventListener('change', () => {
+    initPreview();
+});
+
+// Typing coordinates directly still works — keep the preview markers in sync.
+[x0Input, y0Input, xgInput, ygInput, goalRadiusInput].forEach(input => {
+    input.addEventListener('input', updateMarkersFromInputs);
+});
+
 // ── Init ───────────────────────────────────────────────────────────────────
-loadMapList();
+loadMapList().then(initPreview);
