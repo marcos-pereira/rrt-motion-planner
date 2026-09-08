@@ -124,6 +124,10 @@ def main():
     steer_delta = sampling_time
 
     pose_sampler = DifferentialDrivePoseSampler(0, map_width, 0, map_height)    
+    diff_drive_sampler = DifferentialDriveSampler(linear_velocity_min, linear_velocity_max,
+                                                  angular_velocity_min, angular_velocity_max,
+                                                  0, map_width, 0, map_height,
+                                                  wheel_radius, distance_wheels, sampling_time)
     steer = DifferentialDriveSteering(wheel_radius, distance_wheels, sampling_time)    
     collision_checker = DifferentialDriveCollisionChecker(scene_map, robot_radius)
 
@@ -132,7 +136,7 @@ def main():
                     goal_radius,
                     steer_delta,
                     steer,
-                    pose_sampler,
+                    diff_drive_sampler,
                     collision_checker,
                     num_nodes,
                     max_planning_time)
@@ -152,7 +156,7 @@ def main():
                     goal_radius,
                     steer_delta,
                     steer,
-                    pose_sampler,
+                    diff_drive_sampler,
                     eta_rrt,
                     gamma_rrt,
                     near_radius,
