@@ -1,6 +1,6 @@
 // ── State ──────────────────────────────────────────────────────────────────
 let app = null;           // PIXI.Application
-let planData = null;      // last response from /plan
+let planData = null;      // last response from /plan-differential-drive
 let edgeIndex = 0;        // how many edges have been drawn
 let isAnimating = false;
 
@@ -9,6 +9,16 @@ let renderTexture = null; // accumulates drawn edges efficiently
 let edgeSprite = null;    // sprite backed by renderTexture
 let tempGraphics = null;  // re-used each frame to draw a batch of edges
 let overlayGraphics = null; // path + start/goal circles drawn after animation
+let robotGraphics = null;   // differential-drive robot glyph (circle + heading + axle)
+
+// Robot animation state — steps through planData.path at robotFps states/second,
+// mirroring PlanDrawer.animate_differential_drive_path() in the desktop app.
+let robotPath = null;
+let robotIndex = 0;
+let robotElapsedMs = 0;
+let robotRadius = 8;
+let robotFps = 10;
+let isAnimatingRobot = false;
 
 // Preview state — shows the map + start/goal markers before any planning has run,
 // and lets the user click the canvas to set them instead of typing coordinates.
@@ -20,20 +30,22 @@ let placeMode = null; // null | 'start' | 'goal' — which point the next click 
 let previewGeneration = 0; // guards against overlapping initPreview() calls (rapid map switches)
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
-const runBtn        = document.getElementById('run-btn');
-const setStartBtn   = document.getElementById('set-start-btn');
-const setGoalBtn    = document.getElementById('set-goal-btn');
-const statusEl      = document.getElementById('status');
-const mapSelect     = document.getElementById('map-name');
-const speedInput    = document.getElementById('speed');
-const speedLabel    = document.getElementById('speed-label');
-const canvasEl      = document.getElementById('canvas-container');
-const placeholder   = document.getElementById('placeholder');
+const runBtn         = document.getElementById('run-btn');
+const statusEl       = document.getElementById('status');
+const mapSelect      = document.getElementById('map-name');
+const speedInput     = document.getElementById('speed');
+const speedLabel     = document.getElementById('speed-label');
+const robotFpsInput  = document.getElementById('robot-fps');
+const robotFpsLabel  = document.getElementById('robot-fps-label');
+const canvasEl       = document.getElementById('canvas-container');
+const placeholder    = document.getElementById('placeholder');
 const placeholderText = placeholder.querySelector('p');
-const x0Input       = document.getElementById('x0');
-const y0Input       = document.getElementById('y0');
-const xgInput       = document.getElementById('xg');
-const ygInput       = document.getElementById('yg');
+const setStartBtn    = document.getElementById('set-start-btn');
+const setGoalBtn     = document.getElementById('set-goal-btn');
+const x0Input         = document.getElementById('x0');
+const y0Input         = document.getElementById('y0');
+const xgInput         = document.getElementById('xg');
+const ygInput         = document.getElementById('yg');
 const goalRadiusInput = document.getElementById('goal-radius');
 
 // ── Startup ────────────────────────────────────────────────────────────────
@@ -58,14 +70,15 @@ function setStatus(msg) { statusEl.textContent = msg; }
 
 function getParams() {
     const params = {
-        map_name:    mapSelect.value,
-        steer_delta: parseFloat(document.getElementById('steer-delta').value),
-        goal_radius: parseInt(goalRadiusInput.value),
-        num_nodes:   parseInt(document.getElementById('num-nodes').value),
-        x0: parseInt(x0Input.value),
-        y0: parseInt(y0Input.value),
-        xg: parseInt(xgInput.value),
-        yg: parseInt(ygInput.value),
+        map_name:      mapSelect.value,
+        sampling_time: parseFloat(document.getElementById('sampling-time').value),
+        goal_radius:   parseInt(document.getElementById('goal-radius').value),
+        robot_radius:  parseFloat(document.getElementById('robot-radius').value),
+        num_nodes:     parseInt(document.getElementById('num-nodes').value),
+        x0: parseFloat(document.getElementById('x0').value),
+        y0: parseFloat(document.getElementById('y0').value),
+        xg: parseFloat(document.getElementById('xg').value),
+        yg: parseFloat(document.getElementById('yg').value),
     };
 
     const maxTimeRaw = document.getElementById('max-planning-time').value;
@@ -79,6 +92,7 @@ function getParams() {
 function destroyApp() {
     if (!app) return;
     app.ticker.remove(animationStep);
+    app.ticker.remove(robotAnimationStep);
     app.view.removeEventListener('click', onCanvasClick);
     // texture:false — the map sprite's texture is managed by PIXI.Assets; destroying
     // it here (instead of via Assets.unload()) corrupts the Assets cache for future
@@ -86,7 +100,8 @@ function destroyApp() {
     // Assets-managed, so it's destroyed explicitly below instead.
     app.destroy(true, { children: true, texture: false });
     if (renderTexture) renderTexture.destroy(true);
-    app = renderTexture = edgeSprite = tempGraphics = overlayGraphics = null;
+    app = renderTexture = edgeSprite = tempGraphics = overlayGraphics = robotGraphics = null;
+    isAnimatingRobot = false;
     previewActive = false;
     setPlaceMode(null);
     // Remove the canvas element the old app appended
@@ -219,7 +234,7 @@ async function run() {
     const params = getParams();
     setStatus('⏳ Running RRT (this may take a moment)...');
 
-    const url = new URL('/plan', window.location.origin);
+    const url = new URL('/plan-differential-drive', window.location.origin);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
     let data;
@@ -245,7 +260,7 @@ async function run() {
     startAnimation();
 }
 
-// ── Canvas init (run) ─────────────────────────────────────────────────────
+// ── Canvas init ────────────────────────────────────────────────────────────
 async function initCanvas(data) {
     // Fit the map into the available container while preserving aspect ratio
     const containerW = canvasEl.clientWidth  || 800;
@@ -253,7 +268,6 @@ async function initCanvas(data) {
     const scale = Math.min(containerW / data.map_width, containerH / data.map_height, 1);
     const canvasW = Math.floor(data.map_width  * scale);
     const canvasH = Math.floor(data.map_height * scale);
-    canvasScale = scale;
 
     app = new PIXI.Application({
         width: canvasW,
@@ -283,9 +297,13 @@ async function initCanvas(data) {
     // Overlay sits on top: path line + start/goal circles
     overlayGraphics = new PIXI.Graphics();
     app.stage.addChild(overlayGraphics);
+
+    // Robot glyph sits on top of everything else
+    robotGraphics = new PIXI.Graphics();
+    app.stage.addChild(robotGraphics);
 }
 
-// ── Animation ──────────────────────────────────────────────────────────────
+// ── Tree animation ─────────────────────────────────────────────────────────
 function startAnimation() {
     edgeIndex = 0;
     isAnimating = true;
@@ -300,7 +318,8 @@ function animationStep() {
     const count  = Math.min(speed, edges.length - edgeIndex);
 
     if (count > 0) {
-        // Draw `count` new edges into tempGraphics, then bake into renderTexture
+        // Draw `count` new edges into tempGraphics, then bake into renderTexture.
+        // Edges are [x, y, theta] states — only x, y are used for the tree lines.
         tempGraphics.clear();
         tempGraphics.lineStyle(1.5, 0xC400B7, 1);
 
@@ -325,6 +344,7 @@ function animationStep() {
             setStatus(
                 `✅ Done — Path cost: ${planData.path_cost.toFixed(1)} | Nodes: ${planData.node_count}`
             );
+            startRobotAnimation(planData.path, planData.robot_radius, parseInt(robotFpsInput.value));
         } else if (planData.stop_reason === 'max_time') {
             setStatus(
                 `⏱️ Max planning time reached, no path found | Nodes: ${planData.node_count}`
@@ -342,7 +362,7 @@ function drawOverlay() {
     const d = planData;
     overlayGraphics.clear();
 
-    // Path (blue, drawn goal→start so start circle renders on top)
+    // Path (blue) — [x, y, theta] states, only x, y are used for the line.
     if (d.path.length > 1) {
         overlayGraphics.lineStyle(4, 0x0B27DB, 1);
         overlayGraphics.moveTo(d.path[0][0], d.path[0][1]);
@@ -363,9 +383,78 @@ function drawOverlay() {
     overlayGraphics.endFill();
 }
 
+// ── Robot animation ────────────────────────────────────────────────────────
+// Draws the differential-drive robot as a circle (its footprint) with a heading line
+// (center to edge, in the direction of travel) and a perpendicular axle line spanning
+// the diameter, then steps it through `path` at `fps` states/second — mirroring
+// DifferentialDriveRobotShape and PlanDrawer.animate_differential_drive_path() in the
+// desktop app. Unlike PlanDrawer, no y-flip is needed here (see initCanvas's comment).
+function startRobotAnimation(path, radius, fps) {
+    if (!path || path.length === 0) return;
+
+    robotPath = path;
+    robotIndex = 0;
+    robotElapsedMs = 0;
+    robotRadius = radius;
+    robotFps = fps;
+    isAnimatingRobot = true;
+
+    drawRobotAt(robotPath[0]);
+    app.ticker.add(robotAnimationStep);
+}
+
+function robotAnimationStep() {
+    if (!isAnimatingRobot || !robotPath) return;
+
+    robotElapsedMs += app.ticker.deltaMS;
+    const msPerState = 1000 / robotFps;
+
+    if (robotElapsedMs < msPerState) return;
+    robotElapsedMs = 0;
+    robotIndex++;
+
+    if (robotIndex >= robotPath.length) {
+        isAnimatingRobot = false;
+        app.ticker.remove(robotAnimationStep);
+        return;
+    }
+
+    drawRobotAt(robotPath[robotIndex]);
+}
+
+function drawRobotAt(state) {
+    const [x, y, theta] = state;
+
+    const headingX = x + robotRadius * Math.cos(theta);
+    const headingY = y + robotRadius * Math.sin(theta);
+    const axleDx = robotRadius * Math.cos(theta + Math.PI / 2);
+    const axleDy = robotRadius * Math.sin(theta + Math.PI / 2);
+
+    robotGraphics.clear();
+
+    // Body
+    robotGraphics.lineStyle(0);
+    robotGraphics.beginFill(0xDB540B);
+    robotGraphics.drawCircle(x, y, robotRadius);
+    robotGraphics.endFill();
+
+    // Heading line
+    robotGraphics.lineStyle(2, 0xFFFFFF, 1);
+    robotGraphics.moveTo(x, y);
+    robotGraphics.lineTo(headingX, headingY);
+
+    // Axle line, perpendicular to heading, spanning the diameter
+    robotGraphics.moveTo(x + axleDx, y + axleDy);
+    robotGraphics.lineTo(x - axleDx, y - axleDy);
+}
+
 // ── Events ─────────────────────────────────────────────────────────────────
 speedInput.addEventListener('input', () => {
     speedLabel.textContent = `${speedInput.value} edges / frame`;
+});
+
+robotFpsInput.addEventListener('input', () => {
+    robotFpsLabel.textContent = `${robotFpsInput.value} states / s`;
 });
 
 runBtn.addEventListener('click', run);

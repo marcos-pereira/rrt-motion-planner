@@ -8,10 +8,14 @@
 # Contributors: 
 # marcos-pereira (https://github.com/marcos-pereira)
 
+import math
+import time
+
 import pyglet
 from pyglet import shapes, image
 import numpy as np
 
+from State import State
 from TreeBuilder import TreeBuilder
 from RRTPlanner import RRTPlanner
 from RRTStar import RRTStar
@@ -23,6 +27,61 @@ class Line():
 class Path():
     def __init__(self, x1, y1, x2, y2, batch, group):
         self.path_ = shapes.Line(x1, y1, x2, y2, color=(11, 39, 219), thickness=5, batch=batch, group=group)
+
+class DifferentialDriveRobotShape():
+    """ Draws a differential drive robot footprint as a circle with two lines showing its
+    orientation: a heading line from the center to the edge of the circle in the direction
+    the robot is facing, and an axle line perpendicular to the heading spanning the circle's
+    diameter, representing the wheel axle.
+
+    x, y and theta are given in the original map image frame, where y increases downward;
+    map_height flips y so the shape is placed correctly in pyglet's y-up window, the same
+    convention used by Line and Path elsewhere in this file.
+    """
+
+    def __init__(self, x, y, theta, radius, map_height, batch, group,
+                 body_color=(219, 84, 11), heading_color=(255, 255, 255), axle_color=(255, 255, 255)):
+        self.radius_ = radius
+
+        draw_x, draw_y = x, map_height - y
+        heading_x, heading_y = self._heading_endpoint(x, y, theta, radius, map_height)
+        axle_x1, axle_y1, axle_x2, axle_y2 = self._axle_endpoints(x, y, theta, radius, map_height)
+
+        self.body_ = shapes.Circle(draw_x, draw_y, radius, color=body_color, batch=batch, group=group)
+        self.heading_ = shapes.Line(draw_x, draw_y, heading_x, heading_y, thickness=2,
+                                    color=heading_color, batch=batch, group=group)
+        self.axle_ = shapes.Line(axle_x1, axle_y1, axle_x2, axle_y2, thickness=2,
+                                 color=axle_color, batch=batch, group=group)
+
+    @staticmethod
+    def _heading_endpoint(x, y, theta, radius, map_height):
+        """ Return the (drawing-frame) endpoint of the heading line, from the center
+        towards the edge of the circle in the direction theta. """
+        return x + radius * math.cos(theta), map_height - (y + radius * math.sin(theta))
+
+    @staticmethod
+    def _axle_endpoints(x, y, theta, radius, map_height):
+        """ Return the (drawing-frame) endpoints of the axle line, perpendicular to theta
+        and spanning the circle's diameter. """
+        axle_dx = radius * math.cos(theta + math.pi / 2)
+        axle_dy = radius * math.sin(theta + math.pi / 2)
+        return (x + axle_dx, map_height - (y + axle_dy),
+                x - axle_dx, map_height - (y - axle_dy))
+
+    def update(self, x, y, theta, map_height):
+        """ Move this shape to state [x, y, theta], reusing the same pyglet shapes instead
+        of creating new ones, so animating a path does not accumulate shapes in the batch.
+        """
+        draw_x, draw_y = x, map_height - y
+        self.body_.x, self.body_.y = draw_x, draw_y
+
+        heading_x, heading_y = self._heading_endpoint(x, y, theta, self.radius_, map_height)
+        self.heading_.x, self.heading_.y = draw_x, draw_y
+        self.heading_.x2, self.heading_.y2 = heading_x, heading_y
+
+        axle_x1, axle_y1, axle_x2, axle_y2 = self._axle_endpoints(x, y, theta, self.radius_, map_height)
+        self.axle_.x, self.axle_.y = axle_x1, axle_y1
+        self.axle_.x2, self.axle_.y2 = axle_x2, axle_y2
 
 class PlanDrawer(pyglet.window.Window):
     def __init__(self,
@@ -56,9 +115,15 @@ class PlanDrawer(pyglet.window.Window):
         
         ## Store lines
         self.lines_ = list()
-        
-        ## Store lines 
+
+        ## Store lines
         self.lines_rrtstar_ = dict()
+
+        ## Store the state_init/state_goal marker circles so they keep a live Python
+        ## reference after draw()/draw_final() return — pyglet shapes are deleted from
+        ## their batch as soon as they are garbage collected (ShapeBase.__del__), so a
+        ## shape kept only in a local variable disappears once its function returns.
+        self.markers_ = list()
 
         ## Store path to draw
         self.path_line_ = set()
@@ -109,15 +174,18 @@ class PlanDrawer(pyglet.window.Window):
         if symbol == self.key_.S:
             self.drawing_ = 1
             
-    def draw(self, tree_builder : TreeBuilder, goal_node : tuple[int, int], goal_radius : int, path : list[tuple[int, int]]):
+    def draw(self, tree_builder : TreeBuilder, state_goal : State, goal_radius : int, path : list[tuple[int, int]]):
         """Draw the nodes and edges in the graph.
 
         Args:
             tree_builder (TreeBuilder): the tree builder containing the graph information.
+            state_goal (State): the goal configuration.
             edges_in_graph (list): the list of edges in the graph.
         """
         self.clear()
-        
+
+        goal_node = state_goal.get_value()
+
         # Get init node to start drawing the graph from the root node
         init_node = tree_builder.get_init_node()
         edges_in_order = tree_builder.get_edges_in_order()
@@ -126,7 +194,7 @@ class PlanDrawer(pyglet.window.Window):
         goal_reached = False
         goal_color = (92, 214, 118, 100)
 
-        # Draw edges in the exact order x_new was generated.
+        # Draw edges in the exact order state_new was generated.
         for parent_node, child_node in edges_in_order:
             self.lines_.append(Line(parent_node[0], 
                                     self.map_height_-parent_node[1], 
@@ -150,13 +218,17 @@ class PlanDrawer(pyglet.window.Window):
                                         color=(255, 207, 88), 
                                         batch=self.batch_, 
                                         group=self.foreground_)
-            draw_x_goal = shapes.Circle(goal_node[0], 
-                                        self.map_height_-goal_node[1], 
-                                        radius=goal_radius, 
-                                        color=goal_color, 
-                                        batch=self.batch_, 
+            draw_x_goal = shapes.Circle(goal_node[0],
+                                        self.map_height_-goal_node[1],
+                                        radius=goal_radius,
+                                        color=goal_color,
+                                        batch=self.batch_,
                                         group=self.foreground_)
-            
+
+            # Keep these alive after draw() returns (see markers_'s docstring in __init__).
+            self.markers_.append(draw_x_init)
+            self.markers_.append(draw_x_goal)
+
             self.batch_.draw()
             
             # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
@@ -197,28 +269,28 @@ class PlanDrawer(pyglet.window.Window):
         # Clear last tree
         # self.lines_ = set()
         
-        plan_found, x_nearest, x_new = planner.run_step()
-        
+        plan_found, state_nearest, state_new = planner.run_step()
+
         # Draw tree
         tree_node = planner.get_tree_nodes()
-        
+
         # Run the tree node map in reverse order to draw the edges from the root node to the new node added in the tree,
-        # which is the opposite order of how the nodes were added to the tree node map, 
-        # since the tree node map is built in the order of how the nodes were added to the tree, 
+        # which is the opposite order of how the nodes were added to the tree node map,
+        # since the tree node map is built in the order of how the nodes were added to the tree,
         # where each node has a pointer to its parent node.
         current_node = tree_node[-1]
         while current_node.get_parent() is not None:
             parent_node = current_node.get_parent()
-            self.lines_.append(Line(parent_node.get_node_coordinates()[0], 
-                                    self.map_height_-parent_node.get_node_coordinates()[1], 
-                                    current_node.get_node_coordinates()[0], 
-                                    self.map_height_-current_node.get_node_coordinates()[1], 
-                                    self.batch_, 
+            self.lines_.append(Line(parent_node.get_node_coordinates()[0],
+                                    self.map_height_-parent_node.get_node_coordinates()[1],
+                                    current_node.get_node_coordinates()[0],
+                                    self.map_height_-current_node.get_node_coordinates()[1],
+                                    self.batch_,
                                     self.foreground_))
             current_node = parent_node
-        
+
         if plan_found:
-            path, path_cost = planner.path(x_new)
+            path, path_cost = planner.path(state_new)
             for i in range(len(path)-1):
                 self.path_line_.add(Path(path[i][0],
                                         self.map_height_-path[i][1],
@@ -234,22 +306,24 @@ class PlanDrawer(pyglet.window.Window):
             font_size=self.font_size_, x=0, y=self.font_size_,
             batch=self.batch_, group=self.path_layer_)
     
-        ## Draw x_init and x_goal
-        draw_x_init = shapes.Circle(planner.x_init_[0], 
-                                    self.map_height_-planner.x_init_[1], 
-                                    radius=planner.goal_radius_, 
-                                    color=(255, 207, 88), 
-                                    batch=self.batch_, 
+        ## Draw state_init and state_goal
+        state_init_value = planner.state_init_.get_value()
+        state_goal_value = planner.state_goal_.get_value()
+        draw_x_init = shapes.Circle(state_init_value[0],
+                                    self.map_height_-state_init_value[1],
+                                    radius=planner.goal_radius_,
+                                    color=(255, 207, 88),
+                                    batch=self.batch_,
                                     group=self.foreground_)
-        draw_x_goal = shapes.Circle(planner.x_goal_[0], 
-                                    self.map_height_-planner.x_goal_[1], 
-                                    radius=planner.goal_radius_, 
-                                    color=(92, 214, 118), 
-                                    batch=self.batch_, 
+        draw_x_goal = shapes.Circle(state_goal_value[0],
+                                    self.map_height_-state_goal_value[1],
+                                    radius=planner.goal_radius_,
+                                    color=(92, 214, 118),
+                                    batch=self.batch_,
                                     group=self.foreground_)
-        
+
         self.batch_.draw()
-        
+
         # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
         # Facilitates the dispatch of events
         self.flip()
@@ -329,11 +403,11 @@ class PlanDrawer(pyglet.window.Window):
         # Clear last tree
         self.lines_ = list()
                         
-        plan_found, x_nearest, x_new = planner.run_step()
-        
+        plan_found, state_nearest, state_new = planner.run_step()
+
         # Draw tree
         tree_node = planner.get_tree_nodes()
-        
+
         # Draw edges for ALL nodes in the tree
         for node in tree_node:
             parent = node.get_parent()
@@ -369,20 +443,22 @@ class PlanDrawer(pyglet.window.Window):
                                     batch=self.batch_, 
                                     group=self.path_layer_))
     
-        ## Draw x_init and x_goal
-        draw_x_init = shapes.Circle(planner.x_init_[0], 
-                                    self.map_height_-planner.x_init_[1], 
-                                    radius=planner.goal_radius_, 
-                                    color=(255, 207, 88), 
-                                    batch=self.batch_, 
+        ## Draw state_init and state_goal
+        state_init_value = planner.state_init_.get_value()
+        state_goal_value = planner.state_goal_.get_value()
+        draw_x_init = shapes.Circle(state_init_value[0],
+                                    self.map_height_-state_init_value[1],
+                                    radius=planner.goal_radius_,
+                                    color=(255, 207, 88),
+                                    batch=self.batch_,
                                     group=self.foreground_)
-        draw_x_goal = shapes.Circle(planner.x_goal_[0], 
-                                    self.map_height_-planner.x_goal_[1], 
-                                    radius=planner.goal_radius_, 
-                                    color=(92, 214, 118), 
-                                    batch=self.batch_, 
+        draw_x_goal = shapes.Circle(state_goal_value[0],
+                                    self.map_height_-state_goal_value[1],
+                                    radius=planner.goal_radius_,
+                                    color=(92, 214, 118),
+                                    batch=self.batch_,
                                     group=self.foreground_)
-        
+
         self.batch_.draw()
 
         # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
@@ -393,6 +469,48 @@ class PlanDrawer(pyglet.window.Window):
 
         return not budget_exhausted
 
+    def animate_differential_drive_path(self, path: list[tuple[float, float, float]],
+                                         robot_radius: float, fps: float):
+        """ Animate a differential drive robot moving along path, drawing only the final
+        path followed rather than the tree growth. Whatever is already on this window's
+        batch (e.g. the tree and path drawn by draw() or draw_final()) stays visible as a
+        static background, with the moving robot drawn on top of it.
+
+        Args:
+            path (list): chronological list of [x, y, theta] states, from state_init to
+            state_goal, e.g. built by reversing and prepending state_init to the list
+            returned by RRTPlanner.path()/plan() (which is ordered from state_goal back
+            towards state_init, and excludes state_init itself).
+            robot_radius (float): radius of the circle used to draw the robot footprint.
+            fps (float): number of path states drawn per second.
+        """
+        if not path:
+            return
+
+        seconds_per_frame = 1.0 / fps
+        robot_shape = None
+
+        for x, y, theta in path:
+            self.clear()
+
+            if robot_shape is None:
+                robot_shape = DifferentialDriveRobotShape(x, y, theta, robot_radius,
+                                                          self.map_height_, self.batch_, self.path_layer_)
+            else:
+                robot_shape.update(x, y, theta, self.map_height_)
+
+            self.batch_.draw()
+
+            # Ref: https://www.codingninjas.com/studio/library/the-application-event-loop-in-pyglet
+            # Facilitates the dispatch of events
+            self.flip()
+            self.dispatch_events()
+
+            if self.stop_drawing_ == 1:
+                return
+
+            time.sleep(seconds_per_frame)
+
     def draw_final(self, planner : RRTPlanner, path : list[tuple[int, int]], path_cost : float):
         """ Draw the finished tree and path of a planner that has already been run to
         completion, e.g. via plan(). Unlike draw(), which replays the TreeBuilder's
@@ -401,7 +519,7 @@ class PlanDrawer(pyglet.window.Window):
 
         Args:
             planner (RRTPlanner): the RRT or RRT* planner, already run to completion.
-            path (list): the path from x_init to x_goal, or an empty list if none was found.
+            path (list): the path from state_init to state_goal, or an empty list if none was found.
             path_cost (float): the cost of path, as returned alongside it by plan().
         """
         self.clear()
@@ -431,19 +549,25 @@ class PlanDrawer(pyglet.window.Window):
                 font_size=self.font_size_, x=0, y=self.font_size_,
                 batch=self.batch_, group=self.path_layer_)
 
-        ## Draw x_init and x_goal
-        draw_x_init = shapes.Circle(planner.x_init_[0],
-                                    self.map_height_-planner.x_init_[1],
+        ## Draw state_init and state_goal
+        state_init_value = planner.state_init_.get_value()
+        state_goal_value = planner.state_goal_.get_value()
+        draw_x_init = shapes.Circle(state_init_value[0],
+                                    self.map_height_-state_init_value[1],
                                     radius=planner.goal_radius_,
                                     color=(255, 207, 88),
                                     batch=self.batch_,
                                     group=self.foreground_)
-        draw_x_goal = shapes.Circle(planner.x_goal_[0],
-                                    self.map_height_-planner.x_goal_[1],
+        draw_x_goal = shapes.Circle(state_goal_value[0],
+                                    self.map_height_-state_goal_value[1],
                                     radius=planner.goal_radius_,
                                     color=(92, 214, 118),
                                     batch=self.batch_,
                                     group=self.foreground_)
+
+        # Keep these alive after draw_final() returns (see markers_'s docstring in __init__).
+        self.markers_.append(draw_x_init)
+        self.markers_.append(draw_x_goal)
 
         self.batch_.draw()
 

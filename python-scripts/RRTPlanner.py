@@ -11,20 +11,26 @@
 import time
 from abc import ABC, abstractmethod
 import numpy as np
-from random_config import random
 from rtree import index
 from scipy.spatial import cKDTree
 
+from CollisionChecker import CollisionChecker
+from RealVectorState import RealVectorState
+from Sampler import Sampler
+from State import State
+from Steer import Steer
 from TreeBuilder import TreeBuilder
 from TreeNode import TreeNode
 
 class RRTPlanner(ABC):
     def __init__(self,
-                 x_init,
-                 x_goal,
+                 state_init: State,
+                 state_goal: State,
                  goal_radius,
                  steer_delta,
-                 scene_map,
+                 steer: Steer,
+                 sampler: Sampler,
+                 collision_checker: CollisionChecker,
                  max_num_nodes,
                  max_planning_time=None):
         """ Return RRTPlanner object. These planners were implement or are inspired by the
@@ -33,27 +39,34 @@ class RRTPlanner(ABC):
         The International Journal of Robotics Research, vol. 30, no. 7, pp. 846–894, 2011, doi: 10.1177/0278364911406761.
 
         Args:
-            x_init (tuple): the initial node configuration.
-            x_goal (tuple): the goal node configuration.
+            state_init (State): the initial configuration, e.g. a RealVectorState for
+            R2, R3, and so on.
+            state_goal (State): the goal configuration, e.g. a RealVectorState for
+            R2, R3, and so on.
             goal_radius (double): the radius of a ball around the goal to be considered
             at the goal.
             steer_delta (int): the step size in pixels when going from a node in the tree
             towards a new sampled node.
-            scene_map (numpy matrix): the scene map where 0 indicate free space and 1 indicate obstacles.
+            steer (Steer): the steering strategy used to move from a node in the tree
+            towards a new sampled node when expanding the tree.
+            sampler (Sampler): the sampling strategy used to draw random configurations
+            from the configuration space when expanding the tree.
+            collision_checker (CollisionChecker): the collision checking strategy used to
+            check if a state is in collision with the obstacles of the state space.
             max_num_nodes (int): the maximum number of nodes to run the planner.
             max_planning_time (float): the maximum time in seconds to run plan(), or None to
             only bound the search by max_num_nodes.
         """
-        self.x_init_ = x_init
-        self.x_goal_ = x_goal
+        self.state_init_ = state_init
+        self.state_goal_ = state_goal
         self.goal_radius_ = goal_radius
         self.steer_delta_ = steer_delta
+        self.steer_ = steer
+        self.sampler_ = sampler
+        self.collision_checker_ = collision_checker
         self.max_num_nodes_ = max_num_nodes
         self.max_planning_time_ = max_planning_time
-        self.scene_map_ = scene_map
 
-        self.map_height_, self.map_width_ = self.scene_map_.shape
-        
         # interleaved True: requires coordinates as [xmin ymin, xmax ymax]
         # See: https://rtree.readthedocs.io/en/latest/class.html#rtree.index.Property
         # index.Property: inherits some instation properties:
@@ -62,48 +75,44 @@ class RRTPlanner(ABC):
 
         ## Used to get nearest neighbors using KDtree
         self.nodes_list_ = list()
-        self.nodes_list_.append(self.x_init_)
-        
+        self.nodes_list_.append(self.state_init_.get_value())
+
         self.node_count_ = 1
 
         self.edges_ = set()
 
         ## Initialize costs map
         self.node_to_cost_ = dict()
-        self.node_to_cost_[self.x_init_] = 0
+        self.node_to_cost_[self.state_init_.get_value()] = 0
 
         ## Initialize parent map
         self.node_to_parent_ = dict()
-        self.node_to_parent_[self.x_init_] = self.x_init_
+        self.node_to_parent_[self.state_init_.get_value()] = self.state_init_.get_value()
 
         ## Initalize graph
         self.rrt_graph_ = (self.nodes_, self.edges_)
                 
-        # Initialize tree builder to maintain the connectivity between 
-        # nodes and edges in the graph        
-        self.tree_builder_ = TreeBuilder(x_init)
-        
-        # Tree node map to maintain the parent pointer tree, 
+        # Initialize tree builder to maintain the connectivity between
+        # nodes and edges in the graph
+        self.tree_builder_ = TreeBuilder(self.state_init_.get_value())
+
+        # Tree node map to maintain the parent pointer tree,
         # where each node has a pointer to its parent node.
         self.tree_nodes_ = list[TreeNode]()
-        
+
         # Add the initial node to the tree node map
-        self.tree_nodes_.append(TreeNode(x_init, 0, None))
-        
-        # Add the initial node to the tree node map to maintain the parent pointer tree, 
+        self.tree_nodes_.append(TreeNode(self.state_init_, 0, None))
+
+        # Add the initial node to the tree node map to maintain the parent pointer tree,
         # where each node has a pointer to its parent node.
         self.node_to_tree_node_ = dict()
-        self.node_to_tree_node_[x_init] = self.tree_nodes_[-1]
-        
-        ## Used to detect collisions with obstacles
-        self.ones_in_drawing_ = np.where(self.scene_map_ == 1)
-        self.obstacles_coordinates_ = set(zip(self.ones_in_drawing_[1], self.ones_in_drawing_[0]))
-        
+        self.node_to_tree_node_[self.state_init_.get_value()] = self.tree_nodes_[-1]
+
         ## Initialize path to goal empty
         self.path_ = list()
         
         ## New point to add to tree
-        self.x_new_ = tuple()
+        self.state_new_ = RealVectorState(tuple())
         
         ## Store if path was found
         self.path_found_ = False
@@ -140,7 +149,7 @@ class RRTPlanner(ABC):
         leaving path/cost undefined on timeout.
 
         Returns:
-            list: the path from x_init to x_goal, or an empty list if no path was found
+            list: the path from state_init to state_goal, or an empty list if no path was found
             before the maximum number of nodes or the maximum planning time was reached.
             float: the cost of the path, or float('inf') if no path was found.
         """
@@ -162,12 +171,12 @@ class RRTPlanner(ABC):
                 print("Path to goal found!")
                 break
     
-    def path_to_goal_found(self, x_new, x_goal, goal_radius):
+    def path_to_goal_found(self, state_new: State, state_goal: State, goal_radius):
         """ Returns if the path to goal was found.
 
         Args:
-            x_new (_type_): is the new node added to the tree.
-            x_goal (_type_): is the goal node in the map.
+            state_new (State): is the new node added to the tree.
+            state_goal (State): is the goal node in the map.
             goal_radius (_type_): is the radius that considers the
             goal node was reached.
 
@@ -175,13 +184,13 @@ class RRTPlanner(ABC):
             bool: True if the path was found, false otherwise.
         """
         path_found = False
-        
+
         ## Check if goal radius was reached
-        if self.nodes_distance(x_new, x_goal) < goal_radius:
-            print("Goal node radius reached!")     
-                                        
+        if self.nodes_distance(state_new.get_value(), state_goal.get_value()) < goal_radius:
+            print("Goal node radius reached!")
+
             path_found = True
-        
+
         return path_found
     
     def max_number_nodes(self):
@@ -225,23 +234,6 @@ class RRTPlanner(ABC):
 
         return False
 
-    def sample_space(self, x_max, y_max):
-        """ Sample the configuration space with limits x_max and y_max.
-
-        Args:
-            x_max (int): the maximum x coordinate.
-            y_max (int): the maximum y coordinate.
-
-        Returns:
-            tuple: the sampled tuple configuration.
-        """
-        x = random.randint(0, x_max)
-        y = random.randint(0, y_max)
-
-        x_rand = (x, y)
-
-        return x_rand
-    
     def nodes_distance(self, node1: tuple[int, int], node2: tuple[int, int]) -> float:
         """ Returns the distance between node1 and node2.
 
@@ -258,33 +250,6 @@ class RRTPlanner(ABC):
 
         return distance
     
-    def steer(self, node1: tuple[int, int], node2: tuple[int, int], delta: float) -> tuple[int, int]:
-        """ Returns a node between node1 and node2. If they are close by delta, then 
-        return node2.
-
-        Args:
-            node1 (tuple): the initial node.
-            node2 (tuple): the goal node towards which we steer.
-            delta (double): the minimum distance to consider already near enough to node2.
-
-        Returns:
-            tuple: the new node between node1 and node2. 
-        """
-        node1 = np.array([node1[0], node1[1]])
-        node2 = np.array([node2[0], node2[1]])
-        if self.nodes_distance(node1, node2) < delta:
-            node = node2
-        else:
-            diffnodes = node2 - node1
-            diffnodes = diffnodes/self.nodes_distance(node1, node2)
-            node = node1 + delta*diffnodes
-
-        # Convert to int, otherwise the maps will not work with double precision
-        # TODO: use some better mapping like a hash function to avoid this problem
-        node = tuple(int(element) for element in node)
-
-        return  node
-
     def linear_interpolation(self, node1, node2, delta):
         """Do a linear interpolation between the node1 and node2
         using the interpolation factor delta if no collision occurs
@@ -314,9 +279,12 @@ class RRTPlanner(ABC):
         
         return node
     
-    def path(self, node):
-        """ Get path from node to initial node using the map node_to_parent. 
+    def path(self, node: State):
+        """ Get path from node to initial node using the map node_to_parent.
         Return also the path cost.
+
+        Args:
+            node (State): the node to trace the path back from.
 
         Returns:
             list: list of tuples that associate the node and its parent node.
@@ -324,8 +292,8 @@ class RRTPlanner(ABC):
         """
 
         ## Current node starts as the last node of the trajectory
-        current_node = node
-        
+        current_node = node.get_value()
+
         path = list()
 
         while True:
@@ -336,60 +304,60 @@ class RRTPlanner(ABC):
             ## backwards in the tree
             current_node = self.node_to_parent_[current_node]
 
-            ## If x_init is reached
-            if current_node[0] == self.x_init_[0] and \
-                current_node[1] == self.x_init_[1]:
+            ## If state_init is reached
+            if current_node[0] == self.state_init_.get_value()[0] and \
+                current_node[1] == self.state_init_.get_value()[1]:
                 break
-        
-        path_cost = self.cost_to_node(node)
+
+        path_cost = self.cost_to_node(node.get_value())
 
         return path, path_cost
     
-    def nearest_node(self, current_node: tuple[int, int], rrt_graph) -> tuple[int, int]:
+    def nearest_node(self, current_node: State, rrt_graph) -> State:
         """ Get nearest node to current node in the rrt_graph.
 
         Args:
-            current_node (tuple): the current node.
+            current_node (State): the current node.
             rrt_graph (rtree index): the rrt graph.
 
         Returns:
-            tuple: the nearest node to current_node.
+            State: the nearest node to current_node.
         """
-        
+
         # # Number of nearest neighbors to query
         # num_nearest_neighbors = 1
-        
+
         # # The raw object is the node itself as it was inserted in the rtree
         # return_raw_object_from_rtree = "raw"
-        
+
         # # Get the nearest node (the first element of the rrt_graph is the node tree)
         # nearest_node_pair = rrt_graph[0].nearest(current_node, num_results=num_nearest_neighbors, objects=return_raw_object_from_rtree)
         # nearest_node_pair_as_list = list(nearest_node_pair)
-        # # nearest_node_pair_as_list is a list of tuples of the form (node, node_id), 
-        # # where node is the nearest node and node_id is the id of the nearest node in the rtree. 
+        # # nearest_node_pair_as_list is a list of tuples of the form (node, node_id),
+        # # where node is the nearest node and node_id is the id of the nearest node in the rtree.
         # # We want to return only the nearest node, which is the first element of the tuple.
-        
+
         tree = cKDTree(self.nodes_list_)
         # k = 1 means we want to find the single nearest neighbor
         # workers=-1 means to use all available CPU cores for the query
-        _, nearest_node_index = tree.query(current_node, k=1, workers=-1)
+        _, nearest_node_index = tree.query(current_node.get_value(), k=1, workers=-1)
         nearest_node = self.nodes_list_[nearest_node_index]
-        
-        return nearest_node
 
-    def configuration_in_free_space(self) -> tuple[int, int]:
+        return RealVectorState(nearest_node)
+
+    def configuration_in_free_space(self) -> State:
         """Get a configuration in the free configuration space.
 
         Returns:
-            tuple: the configuration in the configuration free space.
+            State: the configuration in the configuration free space.
         """
         ## Sample configuration in space
-        x_rand = self.sample_space(self.map_width_, self.map_height_)
-        
+        x_rand = self.sampler_.get_sample()
+
         # Sample until no collision occurs
-        while x_rand in self.obstacles_coordinates_:
-            x_rand = self.sample_space(self.map_width_, self.map_height_)
-            
+        while self.collision_checker_.collision(x_rand):
+            x_rand = self.sampler_.get_sample()
+
         return x_rand
     
     def cost_to_node(self, node: tuple[int, int]) -> float:
@@ -409,8 +377,7 @@ class RRTPlanner(ABC):
         return cost
 
     def collision(self, node):
-        """ Check if node is in collision. First the node is converted to integers
-        because the configuration space is discretized into integers.
+        """ Check if node is in collision.
 
         Args:
             node (tuple): The node to check if collides with obstacles.
@@ -418,11 +385,7 @@ class RRTPlanner(ABC):
         Returns:
             bool: True if in collision, false otherwise.
         """
-        node_integers = tuple(int(element) for element in node)
-        if node_integers in self.obstacles_coordinates_:
-            return True
-        else:
-            return False
+        return self.collision_checker_.collision(RealVectorState(node))
         
     def insert_node_to_tree(self, node, node_id=0):
         """ Insert node to rrt_tree node tree.

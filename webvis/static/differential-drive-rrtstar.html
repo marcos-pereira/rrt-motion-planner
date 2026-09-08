@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RRT* Visualizer</title>
+    <title>Differential Drive RRT* Visualizer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -45,8 +45,8 @@
         }
         .algo-nav a.active {
             color: #f0f6fc;
-            border-color: #c400b7;
-            background: #1c1023;
+            border-color: #db540b;
+            background: #231208;
         }
         .algo-nav a:hover:not(.active) { border-color: #8b949e; }
 
@@ -90,14 +90,14 @@
         input[type="range"] {
             width: 100%;
             cursor: pointer;
-            accent-color: #c400b7;
+            accent-color: #db540b;
         }
 
         .btn-row { display: flex; gap: 8px; }
 
         #run-btn {
             flex: 1;
-            background: #c400b7;
+            background: #db540b;
             color: #fff;
             border: none;
             padding: 9px 12px;
@@ -108,7 +108,7 @@
             letter-spacing: 0.3px;
             transition: background 0.15s;
         }
-        #run-btn:hover:not(:disabled) { background: #a3009a; }
+        #run-btn:hover:not(:disabled) { background: #b8450a; }
         #run-btn:disabled { background: #30363d; color: #8b949e; cursor: not-allowed; }
 
         #stop-btn {
@@ -139,8 +139,8 @@
         }
         .tool-btn:hover { border-color: #8b949e; }
         .tool-btn.active {
-            border-color: #c400b7;
-            background: #1c1023;
+            border-color: #db540b;
+            background: #231208;
             color: #f0f6fc;
         }
 
@@ -187,12 +187,12 @@
 <aside id="sidebar">
     <div class="algo-nav">
         <a href="/">RRT</a>
-        <a href="/rrtstar.html" class="active">RRT*</a>
+        <a href="/rrtstar.html">RRT*</a>
         <a href="/differential-drive.html">Diff Drive</a>
-        <a href="/differential-drive-rrtstar.html">Diff Drive RRT*</a>
+        <a href="/differential-drive-rrtstar.html" class="active">Diff Drive RRT*</a>
     </div>
 
-    <h1>⭐ RRT* Visualizer</h1>
+    <h1>🤖 Differential Drive RRT* Visualizer</h1>
 
     <div class="field">
         <span class="section-label">Map</span>
@@ -204,11 +204,11 @@
         <div class="row" style="margin-top:4px;">
             <div class="field">
                 <label>x₀</label>
-                <input type="number" id="x0" value="40" min="0">
+                <input type="number" id="x0" value="30" min="0">
             </div>
             <div class="field">
                 <label>y₀</label>
-                <input type="number" id="y0" value="40" min="0">
+                <input type="number" id="y0" value="30" min="0">
             </div>
         </div>
     </div>
@@ -218,11 +218,11 @@
         <div class="row" style="margin-top:4px;">
             <div class="field">
                 <label>x_goal</label>
-                <input type="number" id="xg" value="700" min="0">
+                <input type="number" id="xg" value="30" min="0">
             </div>
             <div class="field">
                 <label>y_goal</label>
-                <input type="number" id="yg" value="550" min="0">
+                <input type="number" id="yg" value="460" min="0">
             </div>
         </div>
     </div>
@@ -234,20 +234,27 @@
 
     <div class="row">
         <div class="field">
-            <label>Steer δ (px)</label>
-            <input type="number" id="steer-delta" value="15" min="1" max="200">
+            <label>Sampling time (s)</label>
+            <input type="number" id="sampling-time" value="20.0" min="0.1" step="0.5">
         </div>
         <div class="field">
             <label>Goal radius (px)</label>
-            <input type="number" id="goal-radius" value="10" min="1" max="200">
+            <input type="number" id="goal-radius" value="20" min="1" max="500">
         </div>
     </div>
 
     <div class="row">
         <div class="field">
+            <label>Robot radius (px)</label>
+            <input type="number" id="robot-radius" value="8" min="0.5" max="100" step="0.5">
+        </div>
+        <div class="field">
             <label>Max nodes</label>
             <input type="number" id="num-nodes" value="20000" min="100" step="1000">
         </div>
+    </div>
+
+    <div class="row">
         <div class="field">
             <label>Max time (s)</label>
             <input type="number" id="max-planning-time" placeholder="unlimited" min="0.1" max="300" step="1">
@@ -270,6 +277,11 @@
     <div class="field">
         <label>Steps per update — <span id="batch-label">100 steps</span></label>
         <input type="range" id="batch-size" min="10" max="1000" value="100">
+    </div>
+
+    <div class="field">
+        <label>Robot speed — <span id="robot-fps-label">10 states / s</span></label>
+        <input type="range" id="robot-fps" min="1" max="30" value="10">
     </div>
 
     <div class="btn-row">
@@ -298,16 +310,20 @@
             <div class="swatch-dot" style="background:#0AD676;"></div>
             Goal
         </div>
+        <div class="legend-item">
+            <div class="swatch-dot" style="background:#DB540B;"></div>
+            Robot (line = heading, shown once planning finishes)
+        </div>
     </div>
 </aside>
 
 <main id="canvas-container">
     <div id="placeholder">
-        <div class="icon">⭐</div>
+        <div class="icon">🤖</div>
         <p>Loading map...</p>
     </div>
 </main>
 
-<script src="rrtstar.js?v=2"></script>
+<script src="differential-drive-rrtstar.js?v=2"></script>
 </body>
 </html>

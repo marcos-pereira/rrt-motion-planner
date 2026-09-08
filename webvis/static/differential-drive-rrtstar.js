@@ -3,8 +3,19 @@ let app = null;         // PIXI.Application
 let eventSource = null; // active SSE connection
 let treeGraphics = null;   // cleared and redrawn each snapshot (rewiring changes parent pointers)
 let overlayGraphics = null; // path + start/goal circles
+let robotGraphics = null;   // differential-drive robot glyph (circle + heading + axle)
 let initPromise = null; // resolves when the canvas is ready
 let isRunning = false;
+
+// Robot animation state — only played once, on the final ("done") snapshot, mirroring
+// how the desktop app animates the robot after RRT* planning finishes (not on every
+// intermediate rewiring snapshot, which would restart the animation constantly).
+let robotPath = null;
+let robotIndex = 0;
+let robotElapsedMs = 0;
+let robotRadius = 8;
+let robotFps = 10;
+let isAnimatingRobot = false;
 
 // Preview state — shows the map + start/goal markers before any planning has run,
 // and lets the user click the canvas to set them instead of typing coordinates.
@@ -16,21 +27,23 @@ let placeMode = null; // null | 'start' | 'goal' — which point the next click 
 let previewGeneration = 0; // guards against overlapping initPreview() calls (rapid map switches)
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
-const runBtn      = document.getElementById('run-btn');
-const stopBtn     = document.getElementById('stop-btn');
-const statusEl    = document.getElementById('status');
-const mapSelect   = document.getElementById('map-name');
-const batchInput  = document.getElementById('batch-size');
-const batchLabel  = document.getElementById('batch-label');
-const canvasEl    = document.getElementById('canvas-container');
-const placeholder = document.getElementById('placeholder');
+const runBtn         = document.getElementById('run-btn');
+const stopBtn        = document.getElementById('stop-btn');
+const statusEl       = document.getElementById('status');
+const mapSelect      = document.getElementById('map-name');
+const batchInput     = document.getElementById('batch-size');
+const batchLabel     = document.getElementById('batch-label');
+const robotFpsInput  = document.getElementById('robot-fps');
+const robotFpsLabel  = document.getElementById('robot-fps-label');
+const canvasEl       = document.getElementById('canvas-container');
+const placeholder    = document.getElementById('placeholder');
 const placeholderText = placeholder.querySelector('p');
-const setStartBtn = document.getElementById('set-start-btn');
-const setGoalBtn  = document.getElementById('set-goal-btn');
-const x0Input      = document.getElementById('x0');
-const y0Input      = document.getElementById('y0');
-const xgInput      = document.getElementById('xg');
-const ygInput      = document.getElementById('yg');
+const setStartBtn    = document.getElementById('set-start-btn');
+const setGoalBtn     = document.getElementById('set-goal-btn');
+const x0Input         = document.getElementById('x0');
+const y0Input         = document.getElementById('y0');
+const xgInput         = document.getElementById('xg');
+const ygInput         = document.getElementById('yg');
 const goalRadiusInput = document.getElementById('goal-radius');
 
 // ── Startup ────────────────────────────────────────────────────────────────
@@ -55,17 +68,18 @@ function setStatus(msg) { statusEl.textContent = msg; }
 
 function getParams() {
     const params = {
-        map_name:    mapSelect.value,
-        steer_delta: parseFloat(document.getElementById('steer-delta').value),
-        goal_radius: parseInt(document.getElementById('goal-radius').value),
-        num_nodes:   parseInt(document.getElementById('num-nodes').value),
-        x0:          parseInt(document.getElementById('x0').value),
-        y0:          parseInt(document.getElementById('y0').value),
-        xg:          parseInt(document.getElementById('xg').value),
-        yg:          parseInt(document.getElementById('yg').value),
-        batch_size:  parseInt(batchInput.value),
-        gamma_rrt:   parseFloat(document.getElementById('gamma-rrt').value),
-        eta:         parseFloat(document.getElementById('eta').value),
+        map_name:      mapSelect.value,
+        sampling_time: parseFloat(document.getElementById('sampling-time').value),
+        goal_radius:   parseInt(document.getElementById('goal-radius').value),
+        robot_radius:  parseFloat(document.getElementById('robot-radius').value),
+        num_nodes:     parseInt(document.getElementById('num-nodes').value),
+        x0:            parseFloat(document.getElementById('x0').value),
+        y0:            parseFloat(document.getElementById('y0').value),
+        xg:            parseFloat(document.getElementById('xg').value),
+        yg:            parseFloat(document.getElementById('yg').value),
+        batch_size:    parseInt(batchInput.value),
+        gamma_rrt:     parseFloat(document.getElementById('gamma-rrt').value),
+        eta:           parseFloat(document.getElementById('eta').value),
     };
 
     const maxTimeRaw = document.getElementById('max-planning-time').value;
@@ -79,17 +93,19 @@ function getParams() {
 function destroyApp() {
     if (eventSource) { eventSource.close(); eventSource = null; }
     if (app) {
+        app.ticker.remove(robotAnimationStep);
         app.view.removeEventListener('click', onCanvasClick);
         // texture:false — the map sprite's texture is managed by PIXI.Assets;
         // destroying it here (instead of via Assets.unload()) corrupts the Assets
         // cache for future loads of the same map.
         app.destroy(true, { children: true, texture: false });
-        app = treeGraphics = overlayGraphics = null;
+        app = treeGraphics = overlayGraphics = robotGraphics = null;
         const old = canvasEl.querySelector('canvas');
         if (old) old.remove();
     }
     initPromise = null;
     isRunning = false;
+    isAnimatingRobot = false;
     previewActive = false;
     setPlaceMode(null);
 }
@@ -217,7 +233,7 @@ async function run() {
     placeholder.style.display = 'block';
 
     const params = getParams();
-    const url = new URL('/plan-rrtstar', window.location.origin);
+    const url = new URL('/plan-differential-drive-rrtstar', window.location.origin);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
     setStatus('🌱 Connecting to RRT* planner...');
@@ -256,6 +272,10 @@ async function run() {
                 : (snap.stop_reason === 'max_time' ? 'No path found — max planning time reached' : 'No path found — max nodes reached');
             const icon = snap.path_found ? '✅' : (snap.stop_reason === 'max_time' ? '⏱️' : '⚠️');
             setStatus(`${icon} Done — Nodes: ${snap.node_count} | ${finalMsg}`);
+
+            if (snap.path_found) {
+                startRobotAnimation(snap.path, snap.robot_radius, parseInt(robotFpsInput.value));
+            }
         }
     };
 
@@ -311,6 +331,10 @@ async function initCanvas(data) {
     overlayGraphics = new PIXI.Graphics();
     app.stage.addChild(overlayGraphics);
 
+    // Robot glyph sits on top of everything else.
+    robotGraphics = new PIXI.Graphics();
+    app.stage.addChild(robotGraphics);
+
     placeholder.style.display = 'none';
 }
 
@@ -318,7 +342,8 @@ async function initCanvas(data) {
 function drawSnapshot(snap) {
     if (!app || !treeGraphics || !overlayGraphics) return;
 
-    // Redraw all current tree edges from scratch.
+    // Redraw all current tree edges from scratch. Edges are [x, y, theta] states —
+    // only x, y are used for the tree lines.
     treeGraphics.clear();
     treeGraphics.lineStyle(1.5, 0xC400B7, 1);
     for (const [p, q] of snap.edges) {
@@ -349,9 +374,78 @@ function drawSnapshot(snap) {
     overlayGraphics.endFill();
 }
 
+// ── Robot animation ────────────────────────────────────────────────────────
+// Draws the differential-drive robot as a circle (its footprint) with a heading line
+// (center to edge, in the direction of travel) and a perpendicular axle line spanning
+// the diameter, then steps it through `path` at `fps` states/second — mirroring
+// DifferentialDriveRobotShape and PlanDrawer.animate_differential_drive_path() in the
+// desktop app. Unlike PlanDrawer, no y-flip is needed here (see initCanvas's comment).
+function startRobotAnimation(path, radius, fps) {
+    if (!path || path.length === 0 || !robotGraphics) return;
+
+    robotPath = path;
+    robotIndex = 0;
+    robotElapsedMs = 0;
+    robotRadius = radius;
+    robotFps = fps;
+    isAnimatingRobot = true;
+
+    drawRobotAt(robotPath[0]);
+    app.ticker.add(robotAnimationStep);
+}
+
+function robotAnimationStep() {
+    if (!isAnimatingRobot || !robotPath) return;
+
+    robotElapsedMs += app.ticker.deltaMS;
+    const msPerState = 1000 / robotFps;
+
+    if (robotElapsedMs < msPerState) return;
+    robotElapsedMs = 0;
+    robotIndex++;
+
+    if (robotIndex >= robotPath.length) {
+        isAnimatingRobot = false;
+        app.ticker.remove(robotAnimationStep);
+        return;
+    }
+
+    drawRobotAt(robotPath[robotIndex]);
+}
+
+function drawRobotAt(state) {
+    const [x, y, theta] = state;
+
+    const headingX = x + robotRadius * Math.cos(theta);
+    const headingY = y + robotRadius * Math.sin(theta);
+    const axleDx = robotRadius * Math.cos(theta + Math.PI / 2);
+    const axleDy = robotRadius * Math.sin(theta + Math.PI / 2);
+
+    robotGraphics.clear();
+
+    // Body
+    robotGraphics.lineStyle(0);
+    robotGraphics.beginFill(0xDB540B);
+    robotGraphics.drawCircle(x, y, robotRadius);
+    robotGraphics.endFill();
+
+    // Heading line
+    robotGraphics.lineStyle(2, 0xFFFFFF, 1);
+    robotGraphics.moveTo(x, y);
+    robotGraphics.lineTo(headingX, headingY);
+
+    // Axle line, perpendicular to heading, spanning the diameter
+    robotGraphics.moveTo(x + axleDx, y + axleDy);
+    robotGraphics.lineTo(x - axleDx, y - axleDy);
+}
+
 // ── Events ─────────────────────────────────────────────────────────────────
 batchInput.addEventListener('input', () => {
     batchLabel.textContent = `${batchInput.value} steps`;
+});
+
+robotFpsInput.addEventListener('input', () => {
+    robotFpsLabel.textContent = `${robotFpsInput.value} states / s`;
 });
 
 runBtn.addEventListener('click', run);

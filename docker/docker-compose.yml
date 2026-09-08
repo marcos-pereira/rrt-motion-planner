@@ -17,16 +17,23 @@ name: rrt-motion-planner
 # Run plan_then_draw.py (RRT full run then edge-by-edge replay):
 #   docker compose -f docker/docker-compose.yml --profile plan-then-draw up
 #
+# Run main_differential_drive.py (differential-drive robot, RRT then RRT*):
+#   docker compose -f docker/docker-compose.yml --profile differential-drive up
+#
 # Run the PixiJS web visualizer (opens at http://localhost:8000):
 #   docker compose -f docker/docker-compose.yml --profile webvis up
+#
+# Run the PixiJS web visualizer for the differential-drive robot
+# (opens at http://localhost:8000/differential-drive.html):
+#   docker compose -f docker/docker-compose.yml --profile webvis-differential-drive up
 #
 # Code changes in python-scripts/ and webvis/ are reflected immediately
 # because both directories are mounted as volumes (no rebuild needed).
 #
 # Planner parameters (map, start/goal, node and time budgets, ...) for the
-# `desktop` and `plan-then-draw` profiles below are read from docker/.env, with
-# fallback defaults if that file or a given variable is missing. Copy docker/.env.example
-# to docker/.env and edit it to change them:
+# `desktop`, `plan-then-draw`, and `differential-drive` profiles below are read
+# from docker/.env, with fallback defaults if that file or a given variable is
+# missing. Copy docker/.env.example to docker/.env and edit it to change them:
 #   cp docker/.env.example docker/.env
 
 # ── Shared config for desktop GUI services ─────────────────────────────────
@@ -95,9 +102,33 @@ services:
       - ${PLAN_THEN_DRAW_ETA_RRT:-20}
       - ${PLAN_THEN_DRAW_NEAR_RADIUS:-50}
 
+  # ── Desktop: differential-drive robot ──────────────────────────────────
+  differential-drive:
+    <<: *base
+    container_name: rrt-differential-drive
+    profiles: [differential-drive]
+    command:
+      - python3
+      - main_differential_drive.py
+      - ${DIFF_DRIVE_MAP_NAME:-smile.png}
+      - ${DIFF_DRIVE_GOAL_RADIUS:-20}
+      - ${DIFF_DRIVE_MAX_NODES:-20000}
+      - ${DIFF_DRIVE_X_INIT:-30}
+      - ${DIFF_DRIVE_Y_INIT:-30}
+      - ${DIFF_DRIVE_X_GOAL:-30}
+      - ${DIFF_DRIVE_Y_GOAL:-460}
+      - ${DIFF_DRIVE_MAX_PLANNING_TIME:-20}
+      - ${DIFF_DRIVE_ROBOT_RADIUS:-8}
+      - ${DIFF_DRIVE_LINEAR_VELOCITY_MAX:-20}
+      - ${DIFF_DRIVE_ANGULAR_VELOCITY_MAX:-1}
+      - ${DIFF_DRIVE_SAMPLING_TIME:-20.0}
+      - ${DIFF_DRIVE_FPS:-10}
+
   # ── Web visualizer: PixiJS in the browser ─────────────────────────────
-  # Both webvis and webvis-rrtstar profiles start this same service.
-  # Navigate to http://localhost:8000 for RRT and /rrtstar.html for RRT*.
+  # All four webvis* profiles start this same service — they only differ in which
+  # page you're told to open: / and /rrtstar.html for the point robot, and
+  # /differential-drive.html and /differential-drive-rrtstar.html for the
+  # differential-drive robot (all four pages are always served, regardless of profile).
   rrt-webvis:
     build:
       # webvis layer extends rrt-motion-planner:latest — build that first
@@ -105,7 +136,7 @@ services:
       dockerfile: docker/Dockerfile.webvis
     image: rrt-motion-planner-webvis:latest
     container_name: rrt-webvis
-    profiles: [webvis, webvis-rrtstar]
+    profiles: [webvis, webvis-rrtstar, webvis-differential-drive, webvis-differential-drive-rrtstar]
     environment:
       # Path to python-scripts inside the container (maps + planner modules)
       MAPS_DIR: /workspace
