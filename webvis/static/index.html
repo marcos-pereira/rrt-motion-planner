@@ -90,6 +90,25 @@
         #run-btn:hover:not(:disabled) { background: #a3009a; }
         #run-btn:disabled { background: #30363d; color: #8b949e; cursor: not-allowed; }
 
+        .tool-row { display: flex; gap: 8px; }
+        .tool-btn {
+            flex: 1;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .tool-btn:hover { border-color: #8b949e; }
+        .tool-btn.active {
+            border-color: #c400b7;
+            background: #1c1023;
+            color: #f0f6fc;
+        }
+
         #status {
             font-size: 0.75rem;
             color: #8b949e;
@@ -194,6 +213,11 @@
         </div>
     </div>
 
+    <div class="tool-row">
+        <button type="button" id="set-start-btn" class="tool-btn">📍 Click: Start</button>
+        <button type="button" id="set-goal-btn" class="tool-btn">🎯 Click: Goal</button>
+    </div>
+
     <div class="row">
         <div class="field">
             <label>Steer δ (px)</label>
@@ -252,10 +276,10 @@
 <main id="canvas-container">
     <div id="placeholder">
         <div class="icon">🌲</div>
-        <p>Run the planner to see the tree grow here.</p>
+        <p>Loading map...</p>
     </div>
 </main>
 
-<script src="app.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

@@ -28,6 +28,18 @@ from RealVectorState import RealVectorState
 app = FastAPI(title="RRT Web Visualizer")
 
 
+@app.middleware("http")
+async def no_cache_static_assets(request, call_next):
+    """Force browsers to revalidate static/ files (HTML/JS/CSS) on every request
+    instead of serving a stale cached copy after a deploy. Revalidation still lets
+    the browser skip the download via a 304 when the file is unchanged (StaticFiles
+    handles ETag/If-None-Match), so this doesn't disable caching outright — it just
+    prevents an old app.js from being used silently without a hard refresh."""
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.get("/maps-list")
 def list_maps():
     """Return names of available PNG map files."""

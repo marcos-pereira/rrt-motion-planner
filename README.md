@@ -125,6 +125,8 @@ uvicorn webvis.server:app --host 0.0.0.0 --port 8000 --reload
 
 **Differential Drive** — open **http://localhost:8000/differential-drive.html** for RRT, or **http://localhost:8000/differential-drive-rrtstar.html** for RRT*. Same flow as above (`/plan-differential-drive` and `/plan-differential-drive-rrtstar` mirror `/plan`/`/plan-rrtstar`), but for a `DifferentialDriveRobot`: nodes are `[x, y, theta]` states, and once the tree/path finishes drawing, the robot — a circle with a heading line and a perpendicular axle line, matching `PlanDrawer.animate_differential_drive_path()` on the desktop — animates along the found path. Use the **Robot speed** slider to control how many path states it steps through per second.
 
+> If a page looks broken or out of date after an update (e.g. the map never loads), do a hard refresh (Ctrl+Shift+R / Cmd+Shift+R) to bypass a stale browser cache of its JS.
+
 ---
 
 ## Running with Docker
