@@ -16,6 +16,7 @@ from RRT import RRT
 from RRTStar import RRTStar
 from DifferentialDrivePoseSampler import DifferentialDrivePoseSampler
 from DifferentialDriveSampler import DifferentialDriveSampler
+from DifferentialDriveSteering import DifferentialDriveSteering
 from DifferentialDriveRandomControlSteering import DifferentialDriveRandomControlSteering
 from DifferentialDriveCollisionChecker import DifferentialDriveCollisionChecker
 from Map import load_map
@@ -52,7 +53,7 @@ def main():
 
     # Bounds for the random [linear_velocity, angular_velocity] control sampled at
     # every RRT/RRT* iteration by DifferentialDriveSampler.
-    linear_velocity_min, linear_velocity_max = 0.0, 20.0
+    linear_velocity_min, linear_velocity_max = 40.0, 80.0
     angular_velocity_min, angular_velocity_max = -1.0, 1.0
 
     # Radius of the circular footprint used by DifferentialDriveCollisionChecker and by
@@ -122,10 +123,8 @@ def main():
     # RRT/RRTStar's constructor still requires it.
     steer_delta = sampling_time
 
-    pose_sampler = DifferentialDrivePoseSampler(0, map_width, 0, map_height)
-    control_sampler = DifferentialDriveSampler(linear_velocity_min, linear_velocity_max,
-                                                angular_velocity_min, angular_velocity_max)
-    steer = DifferentialDriveRandomControlSteering(control_sampler, wheel_radius, distance_wheels, sampling_time)
+    pose_sampler = DifferentialDrivePoseSampler(0, map_width, 0, map_height)    
+    steer = DifferentialDriveSteering(wheel_radius, distance_wheels, sampling_time)    
     collision_checker = DifferentialDriveCollisionChecker(scene_map, robot_radius)
 
     rrt_planner = RRT(x_init,
