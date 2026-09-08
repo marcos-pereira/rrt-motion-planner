@@ -140,8 +140,8 @@ docker compose -f docker/docker-compose.yml --profile desktop up
 # Plan-then-draw mode
 docker compose -f docker/docker-compose.yml --profile plan-then-draw up
 
-# Differential-drive planner (no dedicated profile yet — run ad hoc in the rrt-planner container)
-docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner python3 main_differential_drive.py
+# Differential-drive planner
+docker compose -f docker/docker-compose.yml --profile differential-drive up
 
 # Web visualizer (RRT) — open http://localhost:8000
 docker compose -f docker/docker-compose.yml --profile webvis up
