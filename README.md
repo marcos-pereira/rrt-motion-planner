@@ -97,10 +97,12 @@ python3 main_differential_drive.py [map] [goal_radius] [max_nodes] [x0] [y0] [xg
 
 Every argument is optional and keeps its default when left out. Run `python3 main_differential_drive.py --help` to see the usage line. RRT plans fully first; its tree and path are drawn, then a differential-drive robot — a circle with a heading line and a perpendicular axle line, via `PlanDrawer.animate_differential_drive_path()` — animates along the found path at `fps` states per second. Press `Esc` in that window to close it and start planning RRT*, whose finished tree and path are drawn and animated the same way in a second window (press `Esc` there to close it).
 
-Example command with every argument specified (values shown are the built-in defaults):
+`sampling_time` also becomes `steer_delta` internally, which `DifferentialDriveSteering` uses directly as the distance (in pixels) driven per RRT/RRT* extension step. The default of `1.0` therefore advances only about a pixel per iteration — far too slow to converge across a map hundreds of pixels wide. Use a larger value such as `20.0` in practice.
+
+Example command with every argument specified (matches the built-in defaults, except `sampling_time`, bumped to `20.0` per the note above):
 
 ```bash
-python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 1.0 10
+python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 20.0 10
 ```
 
 ---

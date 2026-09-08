@@ -79,8 +79,9 @@ docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner \
   python3 main.py maze1.png 15 10 50000 40 40 700 550
 
 # Desktop — differential-drive robot (control-space sampled steering), every argument specified
+# (sampling_time is 20.0 rather than the 1.0 default — see the CLI Arguments note below)
 docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner \
-  python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 1.0 10
+  python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 20.0 10
 
 # Web visualizer — RRT (open http://localhost:8000)
 docker compose -f docker/docker-compose.yml --profile webvis up
@@ -150,10 +151,12 @@ The robot itself is drawn as a circle (its footprint, radius `robot_radius`) wit
 | `sampling_time` | `1.0` | Duration, in seconds, simulated per sampled control |
 | `fps` | `10` | States of the final path drawn per second when animating the robot |
 
-Example command with every argument specified (values shown are the built-in defaults):
+`sampling_time` also becomes `steer_delta` internally, which `DifferentialDriveSteering` uses directly as the distance (in pixels) driven per RRT/RRT* extension step. The default of `1.0` therefore advances only about a pixel per iteration — far too slow to converge across a map hundreds of pixels wide. Use a larger value such as `20.0` in practice.
+
+Example command with every argument specified (matches the built-in defaults, except `sampling_time`, bumped to `20.0` per the note above):
 
 ```bash
-python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 1.0 10
+python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 20.0 10
 ```
 
 ## Configuring Planner Parameters (`.env`)
