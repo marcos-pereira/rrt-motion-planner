@@ -15,8 +15,11 @@ from rtree import index
 from RRT import RRT
 from RRTStar import RRTStar
 from SimpleDeltaSteering import SimpleDeltaSteering
+from Cartesian2DSampler import Cartesian2DSampler
+from Cartesian2DCollisionChecker import Cartesian2DCollisionChecker
 from Map import load_map
 from PlanDrawer import PlanDrawer
+from RealVectorState import RealVectorState
 import sys
 
 def main():
@@ -65,8 +68,8 @@ def main():
         elif i == 12:
             near_radius = float(arg)
 
-    init_node = (x_init, y_init)
-    goal_node = (x_goal, y_goal)
+    init_node = RealVectorState((x_init, y_init))
+    goal_node = RealVectorState((x_goal, y_goal))
     # goal_radius = 10
     # steer_delta = 15
     # num_nodes = 50000
@@ -77,16 +80,19 @@ def main():
 
     steer = SimpleDeltaSteering()
 
+    map_height, map_width = scene_map.shape
+    sampler = Cartesian2DSampler(0, map_width, 0, map_height)
+    collision_checker = Cartesian2DCollisionChecker(scene_map)
+
     rrt_planner = RRT(init_node,
                     goal_node,
                     goal_radius,
                     steer_delta,
                     steer,
-                    scene_map,
+                    sampler,
+                    collision_checker,
                     num_nodes,
                     max_planning_time)
-    
-    map_height, map_width = scene_map.shape
     plan_drawer_rrt = PlanDrawer(map_name, map_width, map_height, font_size)
     plan_drawer_rrt.run(rrt_planner)
     
@@ -111,10 +117,11 @@ def main():
                     goal_radius,
                     steer_delta,
                     steer,
+                    sampler,
                     eta_rrt,
                     gamma_rrt,
                     near_radius,
-                    scene_map,
+                    collision_checker,
                     num_nodes,
                     max_planning_time)
     
