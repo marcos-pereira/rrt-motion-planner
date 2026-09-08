@@ -14,9 +14,12 @@ docker compose -f docker/docker-compose.yml --profile webvis up
 
 # 2b — Run the RRT* web visualizer, then open http://localhost:8000/rrtstar.html
 docker compose -f docker/docker-compose.yml --profile webvis-rrtstar up
+
+# 2c — Run the differential-drive planner instead (opens a desktop window, not the browser)
+docker compose -f docker/docker-compose.yml --profile differential-drive up
 ```
 
-Next, open **http://localhost:8000** in your browser to run the RRT visualizer, or **http://localhost:8000/rrtstar.html** for RRT*. Select a map, set the parameters, adjust the animation speed, and click **Run**.
+Next, open **http://localhost:8000** in your browser to run the RRT visualizer, or **http://localhost:8000/rrtstar.html** for RRT*. Select a map, set the parameters, adjust the animation speed, and click **Run**. Step 2c instead opens a desktop window directly, planning and animating a `DifferentialDriveRobot` — see [Running the differential-drive planner](#running-the-differential-drive-planner) below.
 
 ---
 

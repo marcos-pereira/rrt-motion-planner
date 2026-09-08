@@ -48,6 +48,9 @@ docker compose -f docker/docker-compose.yml --profile desktop up
 
 # 4b — Run the web visualizer, then open http://localhost:8000
 docker compose -f docker/docker-compose.yml --profile webvis up
+
+# 4c — Run the differential-drive planner
+docker compose -f docker/docker-compose.yml --profile differential-drive up
 ```
 
 ## Profiles
