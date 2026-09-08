@@ -51,6 +51,9 @@ docker compose -f docker/docker-compose.yml --profile webvis up
 
 # 4c — Run the differential-drive planner
 docker compose -f docker/docker-compose.yml --profile differential-drive up
+
+# 4d — Run the web visualizer for the differential-drive robot
+docker compose -f docker/docker-compose.yml --profile webvis-differential-drive up
 ```
 
 ## Profiles
@@ -64,6 +67,8 @@ Each service has its own profile so only the requested one starts — profiles n
 | `differential-drive` | `differential-drive` | `main_differential_drive.py` | Differential-drive robot: RRT then RRT* each plan fully, draw, and animate the robot along the found path |
 | `webvis` | `rrt-webvis` | `server.py` (uvicorn) | PixiJS web visualizer — RRT at http://localhost:8000 |
 | `webvis-rrtstar` | `rrt-webvis` | `server.py` (uvicorn) | Same server as `webvis` — RRT* at http://localhost:8000/rrtstar.html |
+| `webvis-differential-drive` | `rrt-webvis` | `server.py` (uvicorn) | Same server as `webvis` — differential-drive RRT at http://localhost:8000/differential-drive.html |
+| `webvis-differential-drive-rrtstar` | `rrt-webvis` | `server.py` (uvicorn) | Same server as `webvis` — differential-drive RRT* at http://localhost:8000/differential-drive-rrtstar.html |
 
 ## Examples
 
@@ -94,6 +99,12 @@ docker compose -f docker/docker-compose.yml --profile webvis up
 # Web visualizer — RRT* (open http://localhost:8000/rrtstar.html)
 # Uses the same server as the webvis profile; only one can run at a time.
 docker compose -f docker/docker-compose.yml --profile webvis-rrtstar up
+
+# Web visualizer — differential-drive robot, RRT (open http://localhost:8000/differential-drive.html)
+docker compose -f docker/docker-compose.yml --profile webvis-differential-drive up
+
+# Web visualizer — differential-drive robot, RRT* (open http://localhost:8000/differential-drive-rrtstar.html)
+docker compose -f docker/docker-compose.yml --profile webvis-differential-drive-rrtstar up
 
 # Shell inside the base container
 docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner bash

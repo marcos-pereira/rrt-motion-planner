@@ -23,6 +23,10 @@ name: rrt-motion-planner
 # Run the PixiJS web visualizer (opens at http://localhost:8000):
 #   docker compose -f docker/docker-compose.yml --profile webvis up
 #
+# Run the PixiJS web visualizer for the differential-drive robot
+# (opens at http://localhost:8000/differential-drive.html):
+#   docker compose -f docker/docker-compose.yml --profile webvis-differential-drive up
+#
 # Code changes in python-scripts/ and webvis/ are reflected immediately
 # because both directories are mounted as volumes (no rebuild needed).
 #
@@ -121,8 +125,10 @@ services:
       - ${DIFF_DRIVE_FPS:-10}
 
   # ── Web visualizer: PixiJS in the browser ─────────────────────────────
-  # Both webvis and webvis-rrtstar profiles start this same service.
-  # Navigate to http://localhost:8000 for RRT and /rrtstar.html for RRT*.
+  # All four webvis* profiles start this same service — they only differ in which
+  # page you're told to open: / and /rrtstar.html for the point robot, and
+  # /differential-drive.html and /differential-drive-rrtstar.html for the
+  # differential-drive robot (all four pages are always served, regardless of profile).
   rrt-webvis:
     build:
       # webvis layer extends rrt-motion-planner:latest — build that first
@@ -130,7 +136,7 @@ services:
       dockerfile: docker/Dockerfile.webvis
     image: rrt-motion-planner-webvis:latest
     container_name: rrt-webvis
-    profiles: [webvis, webvis-rrtstar]
+    profiles: [webvis, webvis-rrtstar, webvis-differential-drive, webvis-differential-drive-rrtstar]
     environment:
       # Path to python-scripts inside the container (maps + planner modules)
       MAPS_DIR: /workspace
