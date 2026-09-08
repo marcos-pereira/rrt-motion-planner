@@ -112,7 +112,7 @@ python3 main_differential_drive.py smile.png 20 20000 30 30 30 460 20 8 20 1 20.
 
 ## Running the web visualizer
 
-The web visualizer runs in a browser using PixiJS. A single server serves both algorithms.
+The web visualizer runs in a browser using PixiJS. A single server serves all four pages.
 
 ```bash
 # From the project root
@@ -122,6 +122,8 @@ uvicorn webvis.server:app --host 0.0.0.0 --port 8000 --reload
 **RRT** — open **http://localhost:8000**. Select a map, set the parameters, adjust the animation speed, and click **Run RRT**. The full tree is computed first, then animated edge-by-edge. Planning runs `plan()` under the hood, which stops at the first solution or when `num_nodes` or the optional `max_planning_time` (in seconds) is reached — whichever happens first.
 
 **RRT*** — open **http://localhost:8000/rrtstar.html**. Planning and drawing are interleaved: the tree is redrawn from scratch on every update because rewiring changes parent pointers. Use the **Steps per update** slider to balance responsiveness against rendering cost, and click **Stop** at any time.
+
+**Differential Drive** — open **http://localhost:8000/differential-drive.html** for RRT, or **http://localhost:8000/differential-drive-rrtstar.html** for RRT*. Same flow as above (`/plan-differential-drive` and `/plan-differential-drive-rrtstar` mirror `/plan`/`/plan-rrtstar`), but for a `DifferentialDriveRobot`: nodes are `[x, y, theta]` states, and once the tree/path finishes drawing, the robot — a circle with a heading line and a perpendicular axle line, matching `PlanDrawer.animate_differential_drive_path()` on the desktop — animates along the found path. Use the **Robot speed** slider to control how many path states it steps through per second.
 
 ---
 
@@ -151,6 +153,12 @@ docker compose -f docker/docker-compose.yml --profile webvis up
 
 # Web visualizer (RRT*) — open http://localhost:8000/rrtstar.html
 docker compose -f docker/docker-compose.yml --profile webvis-rrtstar up
+
+# Web visualizer, differential-drive robot (RRT) — open http://localhost:8000/differential-drive.html
+docker compose -f docker/docker-compose.yml --profile webvis-differential-drive up
+
+# Web visualizer, differential-drive robot (RRT*) — open http://localhost:8000/differential-drive-rrtstar.html
+docker compose -f docker/docker-compose.yml --profile webvis-differential-drive-rrtstar up
 ```
 
 ---
