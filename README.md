@@ -31,6 +31,14 @@ A full video of the Desktop visualizer is available [here](https://youtu.be/lUQy
 
 ---
 
+## Quick view of the software architecture
+
+![uml_class_diagram](docs/uml-class-diagram.png)
+
+See [`docs/uml-class-diagram.md`](docs/uml-class-diagram.md) for the editable Mermaid source and design notes.
+
+---
+
 ## Setup
 
 Create and activate a virtual environment, then install all dependencies:
