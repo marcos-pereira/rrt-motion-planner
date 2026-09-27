@@ -5,13 +5,18 @@ import threading
 import time
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+import anyio.from_thread
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 # Allow overriding the maps/scripts directory via env var for Docker
 MAPS_DIR = Path(os.environ.get("MAPS_DIR", Path(__file__).parent.parent / "python-scripts")).resolve()
 CWD_LOCK = threading.Lock()
+# Limits the four planning endpoints to one run at a time across all clients, so a
+# handful of browser tabs can't each kick off a full RRT/RRT* run and exhaust the
+# server's CPU.
+PLANNING_SEMAPHORE = threading.Semaphore(1)
 sys.path.insert(0, str(MAPS_DIR))
 
 from Map import load_map
@@ -46,6 +51,31 @@ def _resolve_map_path(map_name: str) -> Path:
     if map_path.parent != MAPS_DIR or map_path.suffix.lower() != ".png" or not map_path.is_file():
         raise HTTPException(status_code=404, detail=f"Map '{map_name}' not found.")
     return map_path
+
+
+def _acquire_planning_slot():
+    """Reserve the single planning slot, or raise 429 immediately if one is already
+    in use. Rejecting outright (rather than queuing) matters most for the streaming
+    endpoints: a client waiting on an SSE response would otherwise see nothing at
+    all until the earlier run's deadline elapses."""
+    if not PLANNING_SEMAPHORE.acquire(blocking=False):
+        raise HTTPException(
+            status_code=429,
+            detail="A planning job is already running. Please wait for it to finish, or stop it, before starting another.",
+        )
+
+
+def _disconnect_checker(request: Request):
+    """Return a callable, safe to call from the worker thread a streaming
+    generator runs in, that reports whether request's client has gone away.
+
+    anyio.from_thread.run() hands the coroutine back to this request's event loop
+    and blocks the calling thread until it resolves; this works here because
+    Starlette drives a sync generator's next() calls via anyio.to_thread.run_sync(),
+    which sets up exactly the thread/event-loop pairing anyio.from_thread.run()
+    needs.
+    """
+    return lambda: anyio.from_thread.run(request.is_disconnected)
 
 
 def _load_scene_map(map_name: str):
@@ -115,13 +145,21 @@ def _rrtstar_edges(rrtstar):
     ]
 
 
-def _stream_rrtstar_events(rrtstar, batch_size, max_planning_time, snapshot_extra, path_builder):
+def _stream_rrtstar_events(rrtstar, batch_size, max_planning_time, snapshot_extra, path_builder, is_disconnected):
     """Drive rrtstar.run_step(), yielding a JSON SSE snapshot every batch_size steps
     and once more on completion. Each snapshot carries the complete current tree so
     the browser can clear and redraw on every update — necessary because rewiring
     changes parent pointers. snapshot_extra is merged into every snapshot as-is
     (map/robot metadata that doesn't change during planning); path_builder converts
     a raw path_list into the "path" field.
+
+    is_disconnected is checked once per batch and, if the client is gone, this
+    returns instead of continuing to plan. This is the only reliable way to stop:
+    once the client's socket is closed, Starlette detects it only on the next
+    failed send() and then simply stops calling next() on this generator, without
+    ever closing it — so without this check the generator (and the caller's
+    "finally" that releases PLANNING_SEMAPHORE) would never run again, wedging the
+    planning slot until the server restarts.
     """
     deadline = (time.monotonic() + max_planning_time) if max_planning_time is not None else None
 
@@ -140,6 +178,9 @@ def _stream_rrtstar_events(rrtstar, batch_size, max_planning_time, snapshot_extr
         stop_reason = ("max_nodes" if node_budget_reached else "max_time") if done else None
 
         if step % batch_size == 0 or done:
+            if is_disconnected():
+                return
+
             path_nodes: list = []
             path_cost = None
             if rrtstar.last_goal_node_ is not None:
@@ -192,41 +233,46 @@ def compute_plan(
 ):
     """Run the RRT planner and return edges in insertion order plus the path."""
     _resolve_map_path(map_name)
+    _acquire_planning_slot()
     try:
-        scene_map, map_width, map_height = _load_scene_map(map_name)
-    except Exception:
-        raise HTTPException(status_code=400, detail=f"Failed to load map '{map_name}'.")
+        try:
+            scene_map, map_width, map_height = _load_scene_map(map_name)
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Failed to load map '{map_name}'.")
 
-    x_init = RealVectorState((x0, y0))
-    x_goal = RealVectorState((xg, yg))
+        x_init = RealVectorState((x0, y0))
+        x_goal = RealVectorState((xg, yg))
 
-    steer = SimpleDeltaSteering()
-    sampler = Cartesian2DSampler(0, map_width, 0, map_height)
-    collision_checker = Cartesian2DCollisionChecker(scene_map)
-    rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), steer, sampler, collision_checker, num_nodes, max_planning_time)
+        steer = SimpleDeltaSteering()
+        sampler = Cartesian2DSampler(0, map_width, 0, map_height)
+        collision_checker = Cartesian2DCollisionChecker(scene_map)
+        rrt = RRT(x_init, x_goal, goal_radius, int(steer_delta), steer, sampler, collision_checker, num_nodes, max_planning_time)
 
-    path, path_cost, stop_reason = _run_to_completion(rrt, max_planning_time)
-    edges = rrt.tree_builder_.get_edges_in_order()
-    path_found = len(path) > 0
+        path, path_cost, stop_reason = _run_to_completion(rrt, max_planning_time)
+        edges = rrt.tree_builder_.get_edges_in_order()
+        path_found = len(path) > 0
 
-    return {
-        "edges": [[list(e[0]), list(e[1])] for e in edges],
-        "path": [list(p) for p in path],
-        "map_width": map_width,
-        "map_height": map_height,
-        "x_init": list(x_init.get_value()),
-        "x_goal": list(x_goal.get_value()),
-        "goal_radius": goal_radius,
-        "path_cost": path_cost if path_found else None,
-        "node_count": len(edges) + 1,
-        "path_found": path_found,
-        "stop_reason": stop_reason,
-        "map_name": map_name,
-    }
+        return {
+            "edges": [[list(e[0]), list(e[1])] for e in edges],
+            "path": [list(p) for p in path],
+            "map_width": map_width,
+            "map_height": map_height,
+            "x_init": list(x_init.get_value()),
+            "x_goal": list(x_goal.get_value()),
+            "goal_radius": goal_radius,
+            "path_cost": path_cost if path_found else None,
+            "node_count": len(edges) + 1,
+            "path_found": path_found,
+            "stop_reason": stop_reason,
+            "map_name": map_name,
+        }
+    finally:
+        PLANNING_SEMAPHORE.release()
 
 
 @app.get("/plan-rrtstar")
 def stream_rrtstar(
+    request: Request,
     map_name: str = "smile.png",
     steer_delta: float = Query(15.0, ge=1, le=500),
     goal_radius: int = Query(10, ge=1, le=500),
@@ -242,40 +288,46 @@ def stream_rrtstar(
 ):
     """Run RRT* step-by-step and stream full tree snapshots as Server-Sent Events."""
     _resolve_map_path(map_name)
+    _acquire_planning_slot()
+    is_disconnected = _disconnect_checker(request)
 
     def generate():
         try:
-            scene_map, map_width, map_height = _load_scene_map(map_name)
-        except Exception as exc:
-            yield f"data: {json.dumps({'error': str(exc)})}\n\n"
-            return
+            try:
+                scene_map, map_width, map_height = _load_scene_map(map_name)
+            except Exception as exc:
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+                return
 
-        x_init = RealVectorState((x0, y0))
-        x_goal = RealVectorState((xg, yg))
-        steer = SimpleDeltaSteering()
-        sampler = Cartesian2DSampler(0, map_width, 0, map_height)
-        collision_checker = Cartesian2DCollisionChecker(scene_map)
+            x_init = RealVectorState((x0, y0))
+            x_goal = RealVectorState((xg, yg))
+            steer = SimpleDeltaSteering()
+            sampler = Cartesian2DSampler(0, map_width, 0, map_height)
+            collision_checker = Cartesian2DCollisionChecker(scene_map)
 
-        rrtstar = RRTStar(
-            x_init, x_goal, goal_radius, int(steer_delta), steer, sampler,
-            eta, gamma_rrt,
-            collision_checker, num_nodes,
-            max_planning_time,
-        )
+            rrtstar = RRTStar(
+                x_init, x_goal, goal_radius, int(steer_delta), steer, sampler,
+                eta, gamma_rrt,
+                collision_checker, num_nodes,
+                max_planning_time,
+            )
 
-        snapshot_extra = {
-            "map_width": int(map_width),
-            "map_height": int(map_height),
-            "x_init": list(x_init.get_value()),
-            "x_goal": list(x_goal.get_value()),
-            "goal_radius": goal_radius,
-            "map_name": map_name,
-        }
+            snapshot_extra = {
+                "map_width": int(map_width),
+                "map_height": int(map_height),
+                "x_init": list(x_init.get_value()),
+                "x_goal": list(x_goal.get_value()),
+                "goal_radius": goal_radius,
+                "map_name": map_name,
+            }
 
-        yield from _stream_rrtstar_events(
-            rrtstar, batch_size, max_planning_time, snapshot_extra,
-            path_builder=lambda path_list: [list(p) for p in path_list],
-        )
+            yield from _stream_rrtstar_events(
+                rrtstar, batch_size, max_planning_time, snapshot_extra,
+                path_builder=lambda path_list: [list(p) for p in path_list],
+                is_disconnected=is_disconnected,
+            )
+        finally:
+            PLANNING_SEMAPHORE.release()
 
     return StreamingResponse(
         generate(),
@@ -302,50 +354,55 @@ def compute_plan_differential_drive(
     order (see _to_chronological_path) so the frontend can animate the robot along
     it directly, start to goal."""
     _resolve_map_path(map_name)
+    _acquire_planning_slot()
     try:
-        scene_map, map_width, map_height = _load_scene_map(map_name)
-    except Exception:
-        raise HTTPException(status_code=400, detail=f"Failed to load map '{map_name}'.")
+        try:
+            scene_map, map_width, map_height = _load_scene_map(map_name)
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Failed to load map '{map_name}'.")
 
-    x_init = RealVectorState((x0, y0, 0.0))
-    x_goal = RealVectorState((xg, yg, 0.0))
+        x_init = RealVectorState((x0, y0, 0.0))
+        x_goal = RealVectorState((xg, yg, 0.0))
 
-    # wheel_radius/distance_wheels cancel out in DifferentialDriveRobot's unicycle
-    # model (see main_differential_drive.py), so any nonzero values behave the same.
-    wheel_radius = 1.0
-    distance_wheels = 1.0
-    steer_delta = sampling_time
+        # wheel_radius/distance_wheels cancel out in DifferentialDriveRobot's unicycle
+        # model (see main_differential_drive.py), so any nonzero values behave the same.
+        wheel_radius = 1.0
+        distance_wheels = 1.0
+        steer_delta = sampling_time
 
-    pose_sampler = DifferentialDrivePoseSampler(0, map_width, 0, map_height)
-    steer = DifferentialDriveSteering(wheel_radius, distance_wheels, sampling_time)
-    collision_checker = DifferentialDriveCollisionChecker(scene_map, robot_radius)
-    rrt = RRT(x_init, x_goal, goal_radius, steer_delta, steer, pose_sampler,
-              collision_checker, num_nodes, max_planning_time)
+        pose_sampler = DifferentialDrivePoseSampler(0, map_width, 0, map_height)
+        steer = DifferentialDriveSteering(wheel_radius, distance_wheels, sampling_time)
+        collision_checker = DifferentialDriveCollisionChecker(scene_map, robot_radius)
+        rrt = RRT(x_init, x_goal, goal_radius, steer_delta, steer, pose_sampler,
+                  collision_checker, num_nodes, max_planning_time)
 
-    path, path_cost, stop_reason = _run_to_completion(rrt, max_planning_time)
-    edges = rrt.tree_builder_.get_edges_in_order()
-    path_found = len(path) > 0
-    chronological_path = _to_chronological_path(path, x_init) if path_found else []
+        path, path_cost, stop_reason = _run_to_completion(rrt, max_planning_time)
+        edges = rrt.tree_builder_.get_edges_in_order()
+        path_found = len(path) > 0
+        chronological_path = _to_chronological_path(path, x_init) if path_found else []
 
-    return {
-        "edges": [[list(e[0]), list(e[1])] for e in edges],
-        "path": chronological_path,
-        "map_width": map_width,
-        "map_height": map_height,
-        "x_init": list(x_init.get_value()),
-        "x_goal": list(x_goal.get_value()),
-        "goal_radius": goal_radius,
-        "robot_radius": robot_radius,
-        "path_cost": path_cost if path_found else None,
-        "node_count": len(edges) + 1,
-        "path_found": path_found,
-        "stop_reason": stop_reason,
-        "map_name": map_name,
-    }
+        return {
+            "edges": [[list(e[0]), list(e[1])] for e in edges],
+            "path": chronological_path,
+            "map_width": map_width,
+            "map_height": map_height,
+            "x_init": list(x_init.get_value()),
+            "x_goal": list(x_goal.get_value()),
+            "goal_radius": goal_radius,
+            "robot_radius": robot_radius,
+            "path_cost": path_cost if path_found else None,
+            "node_count": len(edges) + 1,
+            "path_found": path_found,
+            "stop_reason": stop_reason,
+            "map_name": map_name,
+        }
+    finally:
+        PLANNING_SEMAPHORE.release()
 
 
 @app.get("/plan-differential-drive-rrtstar")
 def stream_differential_drive_rrtstar(
+    request: Request,
     map_name: str = "smile.png",
     goal_radius: int = Query(20, ge=1, le=500),
     num_nodes: int = Query(20000, ge=100, le=200000),
@@ -365,45 +422,51 @@ def stream_differential_drive_rrtstar(
     states and a chronological path (see /plan-differential-drive) for the frontend
     to animate."""
     _resolve_map_path(map_name)
+    _acquire_planning_slot()
+    is_disconnected = _disconnect_checker(request)
 
     def generate():
         try:
-            scene_map, map_width, map_height = _load_scene_map(map_name)
-        except Exception as exc:
-            yield f"data: {json.dumps({'error': str(exc)})}\n\n"
-            return
+            try:
+                scene_map, map_width, map_height = _load_scene_map(map_name)
+            except Exception as exc:
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+                return
 
-        x_init = RealVectorState((x0, y0, 0.0))
-        x_goal = RealVectorState((xg, yg, 0.0))
-        wheel_radius = 1.0
-        distance_wheels = 1.0
-        steer_delta = sampling_time
+            x_init = RealVectorState((x0, y0, 0.0))
+            x_goal = RealVectorState((xg, yg, 0.0))
+            wheel_radius = 1.0
+            distance_wheels = 1.0
+            steer_delta = sampling_time
 
-        pose_sampler = DifferentialDrivePoseSampler(0, map_width, 0, map_height)
-        steer = DifferentialDriveSteering(wheel_radius, distance_wheels, sampling_time)
-        collision_checker = DifferentialDriveCollisionChecker(scene_map, robot_radius)
+            pose_sampler = DifferentialDrivePoseSampler(0, map_width, 0, map_height)
+            steer = DifferentialDriveSteering(wheel_radius, distance_wheels, sampling_time)
+            collision_checker = DifferentialDriveCollisionChecker(scene_map, robot_radius)
 
-        rrtstar = RRTStar(
-            x_init, x_goal, goal_radius, steer_delta, steer, pose_sampler,
-            eta, gamma_rrt,
-            collision_checker, num_nodes,
-            max_planning_time,
-        )
+            rrtstar = RRTStar(
+                x_init, x_goal, goal_radius, steer_delta, steer, pose_sampler,
+                eta, gamma_rrt,
+                collision_checker, num_nodes,
+                max_planning_time,
+            )
 
-        snapshot_extra = {
-            "map_width": int(map_width),
-            "map_height": int(map_height),
-            "x_init": list(x_init.get_value()),
-            "x_goal": list(x_goal.get_value()),
-            "goal_radius": goal_radius,
-            "robot_radius": robot_radius,
-            "map_name": map_name,
-        }
+            snapshot_extra = {
+                "map_width": int(map_width),
+                "map_height": int(map_height),
+                "x_init": list(x_init.get_value()),
+                "x_goal": list(x_goal.get_value()),
+                "goal_radius": goal_radius,
+                "robot_radius": robot_radius,
+                "map_name": map_name,
+            }
 
-        yield from _stream_rrtstar_events(
-            rrtstar, batch_size, max_planning_time, snapshot_extra,
-            path_builder=lambda path_list: _to_chronological_path(path_list, x_init),
-        )
+            yield from _stream_rrtstar_events(
+                rrtstar, batch_size, max_planning_time, snapshot_extra,
+                path_builder=lambda path_list: _to_chronological_path(path_list, x_init),
+                is_disconnected=is_disconnected,
+            )
+        finally:
+            PLANNING_SEMAPHORE.release()
 
     return StreamingResponse(
         generate(),
