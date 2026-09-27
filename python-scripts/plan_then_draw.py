@@ -36,14 +36,13 @@ def main():
     # Default RRT* tuning parameters, used unless overridden below.
     gamma_rrt = 1000
     eta_rrt = 20
-    near_radius = 50
 
     arguments = sys.argv[1:]
 
     if arguments and arguments[0] in ('-h', '--help'):
         print("Usage: python3 plan_then_draw.py [map_name.png] [steer_step_size] [goal_radius] "
               "[max_num_nodes_in_tree] [x_init] [y_init] [x_goal] [y_goal] [max_planning_time_seconds] "
-              "[gamma_rrt] [eta_rrt] [near_radius]")
+              "[gamma_rrt] [eta_rrt]")
         print("Any argument left out keeps its default value.")
         return
 
@@ -74,8 +73,6 @@ def main():
             gamma_rrt = float(arg)
         elif i == 11:
             eta_rrt = float(arg)
-        elif i == 12:
-            near_radius = float(arg)
 
     x_init = RealVectorState((x_init_x, x_init_y))
     x_goal = RealVectorState((x_goal_x, x_goal_y))
@@ -111,7 +108,6 @@ def main():
                     sampler,
                     eta_rrt,
                     gamma_rrt,
-                    near_radius,
                     collision_checker,
                     num_nodes,
                     max_planning_time)

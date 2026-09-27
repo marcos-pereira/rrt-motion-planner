@@ -66,7 +66,6 @@ def main():
     # Default RRT* tuning parameters, used unless overridden below.
     gamma_rrt = 1000
     eta_rrt = 20
-    near_radius = 50
 
     arguments = sys.argv[1:]
 
@@ -159,7 +158,6 @@ def main():
                     pose_sampler,
                     eta_rrt,
                     gamma_rrt,
-                    near_radius,
                     collision_checker,
                     num_nodes,
                     max_planning_time)

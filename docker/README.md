@@ -115,7 +115,7 @@ docker compose -f docker/docker-compose.yml --profile desktop run rrt-planner ba
 ## CLI Arguments (`main.py`)
 
 ```
-python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_nodes> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time] [gamma_rrt] [eta_rrt] [near_radius]
+python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_nodes> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time] [gamma_rrt] [eta_rrt]
 ```
 
 | Argument | Example | Description |
@@ -131,12 +131,11 @@ python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_nodes> <x_in
 | `max_planning_time` | `30` | Optional maximum planning time in seconds. Omit for no time limit. |
 | `gamma_rrt` | `1000` | Optional RRT* nearest-neighbor gain. Defaults to `1000`. |
 | `eta_rrt` | `20` | Optional RRT* nearest-neighbor radius cap. Defaults to `20`. |
-| `near_radius` | `20` | Optional RRT* `nearest_neighbor_radius` — accepted for backward compatibility but not actually used by the algorithm (see `RRTStar.__init__`'s docstring). Defaults to `20`. |
 
 ## CLI Arguments (`plan_then_draw.py`)
 
 ```
-python3 plan_then_draw.py [map_name.png] [steer_step_size] [goal_radius] [max_nodes] [x_init] [y_init] [x_goal] [y_goal] [max_planning_time] [gamma_rrt] [eta_rrt] [near_radius]
+python3 plan_then_draw.py [map_name.png] [steer_step_size] [goal_radius] [max_nodes] [x_init] [y_init] [x_goal] [y_goal] [max_planning_time] [gamma_rrt] [eta_rrt]
 ```
 
 Same arguments as `main.py` above, but every one of them is optional — any left out (or the whole command with no arguments at all) keeps its built-in default. Run `python3 plan_then_draw.py --help` for the defaults.
