@@ -79,7 +79,6 @@ services:
       - ${RRT_MAX_PLANNING_TIME:-30}
       - ${RRT_GAMMA_RRT:-1000}
       - ${RRT_ETA_RRT:-20}
-      - ${RRT_NEAR_RADIUS:-20}
 
   # ── Desktop: full plan then edge-by-edge replay ────────────────────────
   plan-then-draw:
@@ -100,7 +99,6 @@ services:
       - ${PLAN_THEN_DRAW_MAX_PLANNING_TIME:-15}
       - ${PLAN_THEN_DRAW_GAMMA_RRT:-1000}
       - ${PLAN_THEN_DRAW_ETA_RRT:-20}
-      - ${PLAN_THEN_DRAW_NEAR_RADIUS:-50}
 
   # ── Desktop: differential-drive robot ──────────────────────────────────
   differential-drive:
