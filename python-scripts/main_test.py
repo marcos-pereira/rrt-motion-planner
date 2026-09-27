@@ -26,7 +26,6 @@ def main():
     x_goal = RealVectorState((30, 460))
     goal_radius = 10
     steer_delta = 15
-    near_radius = 30
     num_nodes = 7500
     max_planning_time = None
     map_name = 'smile.png'
@@ -56,7 +55,6 @@ def main():
 
     gamma_rrt = 1000
     eta_rrt = 20
-    near_radius = 50
     rrt_planner = RRTStar(x_init,
                     x_goal,
                     goal_radius,
@@ -65,11 +63,10 @@ def main():
                     sampler,
                     eta_rrt,
                     gamma_rrt,
-                    near_radius,
                     collision_checker,
                     num_nodes,
                     max_planning_time)
-    
+
     _, _, path_found = rrt_planner.run_test()
     print(f'RRTStar found a path: {path_found}')
     

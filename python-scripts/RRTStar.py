@@ -30,7 +30,6 @@ class RRTStar(RRTPlanner):
                  sampler: Sampler,
                  nearest_neighbor_eta,
                  gamma_rrt,
-                 nearest_neighbor_radius,
                  collision_checker: CollisionChecker,
                  max_num_nodes,
                  max_planning_time=None):
@@ -47,7 +46,6 @@ class RRTStar(RRTPlanner):
             from the configuration space.
             nearest_neighbor_eta (double) : Gain used to determine radius of ball for nearest neighbors.
             gamma_rrt (_type_): Gain used to determine radius of ball for nearest neighbors.
-            nearest_neighbor_radius (double): this parameter is not being used and will not take effect.
             collision_checker (CollisionChecker): the collision checking strategy used to
             check if a state is in collision with the obstacles of the state space.
             max_num_nodes (_type_): Maximum number of nodes in the tree.
@@ -66,8 +64,7 @@ class RRTStar(RRTPlanner):
         
         self.gamma_rrt_ = gamma_rrt
         self.nearest_neighbor_eta_ = nearest_neighbor_eta
-        self.nearest_neighbor_radius_ = nearest_neighbor_radius
-        
+
         # Initial cost to goal
         self.cost_to_goal_ = np.inf
         
@@ -267,8 +264,7 @@ class RRTStar(RRTPlanner):
         gamma_rrtstar = self.gamma_rrt_
         nearest_neighbors_radius = min(\
             (gamma_rrtstar * (np.log(self.node_count_) / self.node_count_ ) ** (1 / dim_configuration_space)), eta)
-        # nearest_neighbors_radius = self.nearest_neighbor_radius_
-        
+
         nearest_neighbors_estimator = NearestNeighbors(radius=nearest_neighbors_radius,
                                              algorithm='kd_tree')
         # Set training data 

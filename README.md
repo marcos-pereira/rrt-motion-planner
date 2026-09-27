@@ -55,7 +55,7 @@ pip install -r python-scripts/requirements.txt
 
 ```bash
 cd python-scripts
-python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg> [max_planning_time] [gamma_rrt] [eta_rrt] [near_radius]
+python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg> [max_planning_time] [gamma_rrt] [eta_rrt]
 ```
 
 | Argument | Description |
@@ -69,7 +69,6 @@ python3 main.py <map> <steer_delta> <goal_radius> <max_nodes> <x0> <y0> <xg> <yg
 | `max_planning_time` | Optional maximum planning time in seconds. Omit for no time limit. |
 | `gamma_rrt` | Optional RRT* nearest-neighbor gain. Defaults to `1000`. |
 | `eta_rrt` | Optional RRT* nearest-neighbor radius cap. Defaults to `20`. |
-| `near_radius` | Optional RRT* `nearest_neighbor_radius` — accepted for backward compatibility but not actually used by the algorithm. Defaults to `20`. |
 
 Example commands:
 

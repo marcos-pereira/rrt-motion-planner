@@ -26,7 +26,7 @@ def main():
     
     # Check if the correct number of command-line arguments are provided
     if len(sys.argv) < 4:
-        print("Usage: python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_num_nodes_in_tree> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time_seconds] [gamma_rrt] [eta_rrt] [near_radius]")
+        print("Usage: python3 main.py <map_name.png> <steer_step_size> <goal_radius> <max_num_nodes_in_tree> <x_init> <y_init> <x_goal> <y_goal> [max_planning_time_seconds] [gamma_rrt] [eta_rrt]")
         return
 
     # Access the command-line arguments starting from index 1
@@ -37,7 +37,6 @@ def main():
     # Default RRT* tuning parameters, used unless overridden below.
     gamma_rrt = 1000
     eta_rrt = 20
-    near_radius = 20
 
     # Print the arguments
     print("Command-line arguments:")
@@ -65,8 +64,6 @@ def main():
             gamma_rrt = float(arg)
         elif i == 11:
             eta_rrt = float(arg)
-        elif i == 12:
-            near_radius = float(arg)
 
     init_node = RealVectorState((x_init, y_init))
     goal_node = RealVectorState((x_goal, y_goal))
@@ -120,11 +117,10 @@ def main():
                     sampler,
                     eta_rrt,
                     gamma_rrt,
-                    near_radius,
                     collision_checker,
                     num_nodes,
                     max_planning_time)
-    
+
     plan_drawer_rrtstar = PlanDrawer(map_name, map_width, map_height, font_size)
     plan_drawer_rrtstar.run_forever(rrtstar_planner)
     
