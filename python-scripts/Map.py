@@ -9,24 +9,31 @@
 # marcos-pereira (https://github.com/marcos-pereira)
 
 #!/usr/bin/env python
+from pathlib import Path
+
 import cv2
 import numpy as np
 
-def load_map(map_name, test=False):
-    """Return a binary matrix where 0 indicate free space and 1 
+def load_map(map_name, test=False, maps_dir=None):
+    """Return a binary matrix where 0 indicate free space and 1
     indicate occupied space by obstacle.
 
     Args:
         map_name (_type_): the name of the map figure as a .png file.
-        test (bool, optional): if in test mode, i.e., True, the map is not shown. 
+        test (bool, optional): if in test mode, i.e., True, the map is not shown.
         Defaults to False.
+        maps_dir (str | Path, optional): directory map_name (and the
+        no_background.png this writes) are resolved against. Defaults to None,
+        which resolves both relative to the current working directory, as before.
 
     Returns:
         numpy array: the binary matrix map where 0 indicte free space and
         1 indicate occupied space by obstacle.
     """
+    base_dir = Path(maps_dir) if maps_dir is not None else Path.cwd()
+
     # Load drawing
-    image = cv2.imread(map_name)
+    image = cv2.imread(str(base_dir / map_name))
 
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -74,8 +81,8 @@ def load_map(map_name, test=False):
     result = np.where(np.expand_dims(foreground_mask, axis=-1), image, background)
 
     # Save the result to the specified output path
-    map_no_background = "no_background.png"
-    cv2.imwrite(map_no_background, result)
+    map_no_background = base_dir / "no_background.png"
+    cv2.imwrite(str(map_no_background), result)
 
     if not test:
         cv2.imshow("drawing", obstacles_map)

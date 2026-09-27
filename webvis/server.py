@@ -12,7 +12,6 @@ from fastapi.staticfiles import StaticFiles
 
 # Allow overriding the maps/scripts directory via env var for Docker
 MAPS_DIR = Path(os.environ.get("MAPS_DIR", Path(__file__).parent.parent / "python-scripts")).resolve()
-CWD_LOCK = threading.Lock()
 # Limits the four planning endpoints to one run at a time across all clients, so a
 # handful of browser tabs can't each kick off a full RRT/RRT* run and exhaust the
 # server's CPU.
@@ -79,19 +78,8 @@ def _disconnect_checker(request: Request):
 
 
 def _load_scene_map(map_name: str):
-    """Load a map's occupancy grid, returning (scene_map, map_width, map_height).
-
-    load_map uses relative paths and saves no_background.png to CWD (process-wide),
-    so the chdir is serialized via CWD_LOCK. Planning itself doesn't touch the
-    filesystem, so the lock is held only for this load, not for the run that follows.
-    """
-    with CWD_LOCK:
-        original_dir = os.getcwd()
-        os.chdir(MAPS_DIR)
-        try:
-            scene_map = load_map(map_name, test=True)
-        finally:
-            os.chdir(original_dir)
+    """Load a map's occupancy grid, returning (scene_map, map_width, map_height)."""
+    scene_map = load_map(map_name, test=True, maps_dir=MAPS_DIR)
     map_height, map_width = scene_map.shape
     return scene_map, map_width, map_height
 
