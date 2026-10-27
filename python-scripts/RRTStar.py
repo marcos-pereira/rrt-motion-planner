@@ -93,7 +93,7 @@ class RRTStar(RRTPlanner):
             state_rand = self.configuration_in_free_space()
 
             ## Get nearest node to state_rand
-            state_nearest = self.nearest_node(state_rand, self.rrt_graph_)
+            state_nearest = self.nearest_node(state_rand)
 
             ## Steer from nearest node in tree (i.e. parent_node) towards the
             ## state_rand to obtain a new node for the tree
@@ -105,7 +105,7 @@ class RRTStar(RRTPlanner):
                 # print("collision")
                 continue
             else:
-                node_already_in_tree = state_new_value in set(self.nodes_list_)
+                node_already_in_tree = state_new_value in self.node_to_parent_
 
                 if node_already_in_tree == True:
                     # Search new node

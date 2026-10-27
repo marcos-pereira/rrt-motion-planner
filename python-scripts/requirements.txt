@@ -2,7 +2,6 @@
 numpy==2.4.4
 opencv-python==4.13.0.92
 pyglet==2.1.14
-rtree==1.4.1
 scipy==1.17.1
 
 # Web visualizer dependencies (webvis/server.py)

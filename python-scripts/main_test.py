@@ -10,7 +10,6 @@
 
 
 #!/usr/bin/env python
-from rtree import index
 from RRT import RRT
 from RRTStar import RRTStar
 from SimpleDeltaSteering import SimpleDeltaSteering

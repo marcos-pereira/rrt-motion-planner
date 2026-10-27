@@ -11,7 +11,6 @@
 import time
 from abc import ABC, abstractmethod
 import numpy as np
-from rtree import index
 
 from CollisionChecker import CollisionChecker
 from NearestNeighborIndex import NearestNeighborIndex
@@ -67,12 +66,6 @@ class RRTPlanner(ABC):
         self.max_num_nodes_ = max_num_nodes
         self.max_planning_time_ = max_planning_time
 
-        # interleaved True: requires coordinates as [xmin ymin, xmax ymax]
-        # See: https://rtree.readthedocs.io/en/latest/class.html#rtree.index.Property
-        # index.Property: inherits some instation properties:
-        # See: https://rtree.readthedocs.io/en/latest/class.html#rtree.index.Property
-        self.nodes_ = index.Index(interleaved=True, properties=index.Property())
-
         ## Tree nodes in insertion order. Add nodes with append_node(), which keeps
         ## nearest_neighbor_index_ in sync, so a query's index i refers to nodes_list_[i].
         self.nodes_list_ = list()
@@ -84,19 +77,15 @@ class RRTPlanner(ABC):
 
         self.node_count_ = 1
 
-        self.edges_ = set()
-
         ## Initialize costs map
         self.node_to_cost_ = dict()
         self.node_to_cost_[self.state_init_.get_value()] = 0
 
-        ## Initialize parent map
+        ## Initialize parent map. It holds every node in the tree, so it also serves
+        ## as the O(1) membership test for nodes already in the tree.
         self.node_to_parent_ = dict()
         self.node_to_parent_[self.state_init_.get_value()] = self.state_init_.get_value()
 
-        ## Initalize graph
-        self.rrt_graph_ = (self.nodes_, self.edges_)
-                
         # Initialize tree builder to maintain the connectivity between
         # nodes and edges in the graph
         self.tree_builder_ = TreeBuilder(self.state_init_.get_value())
@@ -318,30 +307,15 @@ class RRTPlanner(ABC):
 
         return path, path_cost
     
-    def nearest_node(self, current_node: State, rrt_graph) -> State:
-        """ Get nearest node to current node in the rrt_graph.
+    def nearest_node(self, current_node: State) -> State:
+        """ Get nearest node in the tree to current node.
 
         Args:
             current_node (State): the current node.
-            rrt_graph (rtree index): the rrt graph.
 
         Returns:
             State: the nearest node to current_node.
         """
-
-        # # Number of nearest neighbors to query
-        # num_nearest_neighbors = 1
-
-        # # The raw object is the node itself as it was inserted in the rtree
-        # return_raw_object_from_rtree = "raw"
-
-        # # Get the nearest node (the first element of the rrt_graph is the node tree)
-        # nearest_node_pair = rrt_graph[0].nearest(current_node, num_results=num_nearest_neighbors, objects=return_raw_object_from_rtree)
-        # nearest_node_pair_as_list = list(nearest_node_pair)
-        # # nearest_node_pair_as_list is a list of tuples of the form (node, node_id),
-        # # where node is the nearest node and node_id is the id of the nearest node in the rtree.
-        # # We want to return only the nearest node, which is the first element of the tuple.
-
         nearest_node_index = self.nearest_neighbor_index_.nearest(current_node.get_value())
         nearest_node = self.nodes_list_[nearest_node_index]
 
@@ -397,39 +371,7 @@ class RRTPlanner(ABC):
             bool: True if in collision, false otherwise.
         """
         return self.collision_checker_.collision(RealVectorState(node))
-        
-    def insert_node_to_tree(self, node, node_id=0):
-        """ Insert node to rrt_tree node tree.
 
-        Args:
-            node (tuple): the node to be inserted to the rrt_tree node tree.
-            node_id (int): the id of the inserted node.
-        """
-        
-        # The rtree requires the doubled coordinates of the object to be stored
-        # See the insert documentation: https://rtree.readthedocs.io/en/latest/class.html#rtree.index.Property
-        node_coordinates_doubled = node + node
-        
-        # The first element of the rrt_graph is the node tree
-        self.rrt_graph_[0].insert(node_id, node_coordinates_doubled, node)
-        
-    def add_edge(self, node1, node2):
-        """ Add edge from node 1 to node 2 in the rrt_graph.
-
-        Args:
-            node1 (tuple): The first node.
-            node2 (tuple): The second node.
-        """
-        
-        # The second element of rrt_graph is the edge list
-        self.rrt_graph_[1].add((node1, node2))
-        
-    def get_graph(self):
-        """Return the RRT graph.
-        """
-        
-        return self.rrt_graph_
-    
     def get_tree_nodes(self) -> list[TreeNode]:
         """Return the tree nodes.
         """

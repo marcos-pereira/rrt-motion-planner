@@ -11,7 +11,6 @@
 #!/usr/bin/env python
 import sys
 
-from rtree import index
 from RRT import RRT
 from RRTStar import RRTStar
 from DifferentialDrivePoseSampler import DifferentialDrivePoseSampler
