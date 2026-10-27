@@ -132,6 +132,12 @@ classDiagram
         -adjacency_list_
         +add_node(parent_node, new_node)
     }
+    class NearestNeighborIndex {
+        -kd_tree_
+        +add(node)
+        +nearest(query) int
+        +within_radius(query, radius) List~int~
+    }
 
     %% ---- Composition / usage relationships ----
     RRTPlanner o-- "2" State : state_init_, state_goal_
@@ -139,6 +145,7 @@ classDiagram
     RRTPlanner o-- Sampler : sampler_
     RRTPlanner o-- CollisionChecker : collision_checker_
     RRTPlanner *-- TreeBuilder : tree_builder_
+    RRTPlanner *-- NearestNeighborIndex : nearest_neighbor_index_
     RRTPlanner "1" *-- "*" TreeNode : tree_nodes_
     TreeNode o-- State : state_
     TreeNode "1" --> "0..*" TreeNode : children_
@@ -165,3 +172,9 @@ classDiagram
   parent-pointer tree used to reconstruct paths and (in `RRTStar`) to
   propagate cost updates during rewiring. **`TreeBuilder`** is a separate,
   simpler adjacency-list structure kept in sync alongside it.
+- **`NearestNeighborIndex`** answers `RRTPlanner.nearest_node()` and
+  `RRTStar.get_nearest_neighbors()` incrementally: a kd-tree over the older
+  nodes plus a brute-force buffer of the newest ones, rebuilt once the buffer
+  exceeds about √n nodes, instead of rebuilding a spatial index every step.
+  Nodes are added through `RRTPlanner.append_node()`, which keeps it in sync
+  with `nodes_list_`.

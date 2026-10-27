@@ -9,7 +9,6 @@
 # marcos-pereira (https://github.com/marcos-pereira)
 
 #!/usr/bin/env python
-from rtree import index
 # from RRTPlannerMapPyglet import RRTPlanner
 # from RRTStarPlannerMapPyglet import RRTStarPlanner
 from RRT import RRT
