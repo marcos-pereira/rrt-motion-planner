@@ -28,3 +28,8 @@ jobs:
         run: |
           cd python-scripts/
           python3 main_test.py
+
+      - name: Run unit tests
+        run: |
+          cd python-scripts/
+          python3 -m unittest discover -p "test_*.py" -v
