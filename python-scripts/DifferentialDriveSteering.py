@@ -8,9 +8,8 @@
 # Contributors:
 # marcos-pereira (https://github.com/marcos-pereira)
 
-import numpy as np
-from DifferentialDriveRobot import DifferentialDriveRobot
-from SingleIntegratorStep import SingleIntegratorStep
+import math
+
 from Steer import Steer
 
 
@@ -20,14 +19,15 @@ class DifferentialDriveSteering(Steer):
                  distance_wheels: float,
                  sampling_time: float):
         """ Return a DifferentialDriveSteering object that steers between states
-        [x, y, theta] by simulating a DifferentialDriveRobot for one sampling step
-        towards node2.
+        [x, y, theta] following a DifferentialDriveRobot model towards node2. The
+        robot parameters define that model, but they cancel out in the closed form
+        used by steer(), so the steered state does not depend on them.
 
         Args:
-            wheel_radius (float): the radius of the wheels of the simulated robot.
+            wheel_radius (float): the radius of the wheels of the modeled robot.
             distance_wheels (float): the distance between the two wheels of the
-            simulated robot.
-            sampling_time (float): the duration, in seconds, of each simulated step.
+            modeled robot.
+            sampling_time (float): the duration, in seconds, of each modeled step.
         """
         self.wheel_radius_ = wheel_radius
         self.distance_wheels_ = distance_wheels
@@ -52,26 +52,25 @@ class DifferentialDriveSteering(Steer):
         Returns:
             tuple: the state [x, y, theta] reached by steering from node1 towards node2.
         """
-        node1_array = np.array(node1, dtype=float)
-        node2_array = np.array(node2, dtype=float)
+        x1, y1, theta1 = (float(element) for element in node1)
+        x2, y2 = float(node2[0]), float(node2[1])
 
-        distance = np.linalg.norm(node2_array[:2] - node1_array[:2])
+        distance = math.hypot(x2 - x1, y2 - y1)
         if distance < delta:
-            return tuple(node2_array)
+            return tuple(float(element) for element in node2)
 
-        heading_to_goal = np.arctan2(node2_array[1] - node1_array[1], node2_array[0] - node1_array[0])
-        heading_error = np.arctan2(np.sin(heading_to_goal - node1_array[2]), np.cos(heading_to_goal - node1_array[2]))
+        heading_to_goal = math.atan2(y2 - y1, x2 - x1)
+        heading_error = math.atan2(math.sin(heading_to_goal - theta1), math.cos(heading_to_goal - theta1))
 
-        robot = DifferentialDriveRobot(node1_array, self.sampling_time_, self.wheel_radius_,
-                                        self.distance_wheels_, SingleIntegratorStep())
+        # The two DifferentialDriveRobot sampling steps above have a closed form, used here
+        # instead of simulating the robot because steer() runs on every sampling attempt.
+        # With a single integrator, rotating in place at angular velocity heading_error / T
+        # for one step T only changes the heading, and driving straight at linear velocity
+        # delta / T for one step moves delta along the new heading (the wheel radius and
+        # distance cancel out in the Jacobian). test_differential_drive_steering.py checks
+        # this against the simulated robot.
+        theta_new = theta1 + heading_error
+        x_new = x1 + delta * math.cos(theta_new)
+        y_new = y1 + delta * math.sin(theta_new)
 
-        # Rotate in place to align the heading with node2.
-        align_control_input = np.array([0.0, 0.0, heading_error / self.sampling_time_])
-        robot.get_state(align_control_input)
-
-        # Drive straight towards node2 at a linear speed that covers delta in
-        # one sampling step.
-        drive_control_input = np.array([delta / self.sampling_time_, 0.0, 0.0])
-        node = robot.get_state(drive_control_input)
-
-        return tuple(node)
+        return (x_new, y_new, theta_new)

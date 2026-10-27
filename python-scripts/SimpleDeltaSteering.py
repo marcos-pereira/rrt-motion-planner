@@ -8,7 +8,8 @@
 # Contributors:
 # marcos-pereira (https://github.com/marcos-pereira)
 
-import numpy as np
+import math
+
 from Steer import Steer
 
 
@@ -25,17 +26,18 @@ class SimpleDeltaSteering(Steer):
         Returns:
             tuple: the new node between node1 and node2.
         """
-        node1 = np.array([node1[0], node1[1]])
-        node2 = np.array([node2[0], node2[1]])
+        # Scalar math instead of numpy arrays, which cost more than the math itself for two
+        # coordinates, since steer() runs on every sampling attempt
+        x_difference = node2[0] - node1[0]
+        y_difference = node2[1] - node1[1]
 
-        distance = np.linalg.norm(node2 - node1)
+        distance = math.hypot(x_difference, y_difference)
 
         if distance < delta:
-            node = node2
+            node = (node2[0], node2[1])
         else:
-            diffnodes = node2 - node1
-            diffnodes = diffnodes / distance
-            node = node1 + delta * diffnodes
+            node = (node1[0] + delta * (x_difference / distance),
+                    node1[1] + delta * (y_difference / distance))
 
         # Convert to int, otherwise the maps will not work with double precision
         # TODO: use some better mapping like a hash function to avoid this problem

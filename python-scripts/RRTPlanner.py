@@ -8,6 +8,7 @@
 # Contributors: 
 # marcos-pereira (https://github.com/marcos-pereira)
 
+import math
 import time
 from abc import ABC, abstractmethod
 import numpy as np
@@ -238,11 +239,9 @@ class RRTPlanner(ABC):
         Returns:
             double: the norm of the vector between node2 and node1.
         """
-        p1 = np.array([node1[0], node1[1]])
-        p2 = np.array([node2[0], node2[1]])
-        distance = np.linalg.norm(p1 - p2)
-
-        return distance
+        # Scalar math, since building numpy arrays for two coordinates costs more than
+        # the distance itself in this hot path (called several times per neighbor in RRT*)
+        return math.hypot(node1[0] - node2[0], node1[1] - node2[1])
     
     def linear_interpolation(self, node1, node2, delta):
         """Do a linear interpolation between the node1 and node2
