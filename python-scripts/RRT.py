@@ -102,7 +102,7 @@ class RRT(RRTPlanner):
         self.node_to_cost_[state_new.get_value()] = self.cost_to_node(state_new.get_value())
 
         ## Add state_new to graph nodes
-        self.nodes_list_.append(state_new.get_value())
+        self.append_node(state_new.get_value())
 
         ## Increment node count
         self.node_count_ += 1

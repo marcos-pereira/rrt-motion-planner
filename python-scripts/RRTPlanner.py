@@ -12,9 +12,9 @@ import time
 from abc import ABC, abstractmethod
 import numpy as np
 from rtree import index
-from scipy.spatial import cKDTree
 
 from CollisionChecker import CollisionChecker
+from NearestNeighborIndex import NearestNeighborIndex
 from RealVectorState import RealVectorState
 from Sampler import Sampler
 from State import State
@@ -73,9 +73,14 @@ class RRTPlanner(ABC):
         # See: https://rtree.readthedocs.io/en/latest/class.html#rtree.index.Property
         self.nodes_ = index.Index(interleaved=True, properties=index.Property())
 
-        ## Used to get nearest neighbors using KDtree
+        ## Tree nodes in insertion order. Add nodes with append_node(), which keeps
+        ## nearest_neighbor_index_ in sync, so a query's index i refers to nodes_list_[i].
         self.nodes_list_ = list()
         self.nodes_list_.append(self.state_init_.get_value())
+
+        ## Incremental index used to get the nearest node and the nearest neighbors
+        ## without rebuilding a spatial index on every step
+        self.nearest_neighbor_index_ = NearestNeighborIndex(self.state_init_.get_value())
 
         self.node_count_ = 1
 
@@ -337,13 +342,19 @@ class RRTPlanner(ABC):
         # # where node is the nearest node and node_id is the id of the nearest node in the rtree.
         # # We want to return only the nearest node, which is the first element of the tuple.
 
-        tree = cKDTree(self.nodes_list_)
-        # k = 1 means we want to find the single nearest neighbor
-        # workers=-1 means to use all available CPU cores for the query
-        _, nearest_node_index = tree.query(current_node.get_value(), k=1, workers=-1)
+        nearest_node_index = self.nearest_neighbor_index_.nearest(current_node.get_value())
         nearest_node = self.nodes_list_[nearest_node_index]
 
         return RealVectorState(nearest_node)
+
+    def append_node(self, node):
+        """ Append node to the tree's node list and to the nearest neighbor index.
+
+        Args:
+            node (tuple): the node to be appended.
+        """
+        self.nodes_list_.append(node)
+        self.nearest_neighbor_index_.add(node)
 
     def configuration_in_free_space(self) -> State:
         """Get a configuration in the free configuration space.

@@ -8,8 +8,6 @@
 # Contributors: 
 # marcos-pereira (https://github.com/marcos-pereira)
 
-import copy
-
 import numpy as np
 from RRTPlanner import RRTPlanner
 from CollisionChecker import CollisionChecker
@@ -17,7 +15,6 @@ from RealVectorState import RealVectorState
 from Sampler import Sampler
 from State import State
 from Steer import Steer
-from sklearn.neighbors import NearestNeighbors
 from TreeNode import TreeNode
 
 class RRTStar(RRTPlanner):
@@ -125,7 +122,7 @@ class RRTStar(RRTPlanner):
         nearest_neighbors = self.get_nearest_neighbors(state_new.get_value())
 
         ## Add state_new to graph nodes
-        self.nodes_list_.append(state_new.get_value())
+        self.append_node(state_new.get_value())
 
         # Point with minimum cost between state_new and state_nearest
         state_min_value, cost_min = self.get_min_cost_node(state_new.get_value(), state_nearest.get_value(), nearest_neighbors)
@@ -257,7 +254,7 @@ class RRTStar(RRTPlanner):
             node (tuple): the node from which we determine the nearest neighbors.
 
         Returns:
-            set: the set of nearest neighbors to the node.
+            list: the nearest neighbors to the node, in the order they were added to the tree.
         """
         dim_configuration_space = len(node)
         eta = self.nearest_neighbor_eta_
@@ -265,33 +262,11 @@ class RRTStar(RRTPlanner):
         nearest_neighbors_radius = min(\
             (gamma_rrtstar * (np.log(self.node_count_) / self.node_count_ ) ** (1 / dim_configuration_space)), eta)
 
-        nearest_neighbors_estimator = NearestNeighbors(radius=nearest_neighbors_radius,
-                                             algorithm='kd_tree')
-        # Set training data 
-        nearest_neighbors_estimator.fit(np.array(self.nodes_list_))
-        
-        neighbors_distance, neighbors_indexes = nearest_neighbors_estimator.radius_neighbors([np.array(list(node))])
-        
-        neighbors_indexes_set = np.ndenumerate(neighbors_indexes[0])
-        nearest_neighbors_set = self.get_neighbors_from_nodes_list(self.nodes_list_, neighbors_indexes_set)
-        
-        # TODO: check if necessary this copy
-        nearest_neighbors_set = copy.deepcopy(nearest_neighbors_set)
-        
-        return nearest_neighbors_set
-        
-    def get_neighbors_from_nodes_list(self, nodes_list, indexes):
-        """Get the neighbors set from the node_list in tree given the indexes of the the neighbors.
+        neighbors_indexes = self.nearest_neighbor_index_.within_radius(node, nearest_neighbors_radius)
 
-        Args:
-            nodes_list (_type_): the node list of the whole tree.
-            indexes (_type_): the indexes of the neighbors.
+        # The nodes are immutable tuples, so no copy is needed
+        return [self.nodes_list_[neighbor_index] for neighbor_index in neighbors_indexes]
 
-        Returns:
-            set: the set of neighbors.
-        """
-        return [nodes_list[node_num] for (x, node_num) in indexes]
-    
     def cost_to_new_node(self, node1, node2):
         """Return the cost to node2 when connected to node1 in the tree.
 
