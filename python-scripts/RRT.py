@@ -71,7 +71,7 @@ class RRT(RRTPlanner):
             state_rand = self.configuration_in_free_space()
 
             ## Get nearest node to state_rand
-            state_nearest = self.nearest_node(state_rand, self.rrt_graph_)
+            state_nearest = self.nearest_node(state_rand)
 
             ## Steer from nearest node in tree (i.e. parent_node) towards the
             ## state_rand to obtain a new node for the tree
@@ -83,7 +83,7 @@ class RRT(RRTPlanner):
                 # print("collision")
                 continue
             else:
-                node_already_in_tree = state_new_value in set(self.nodes_list_)
+                node_already_in_tree = state_new_value in self.node_to_parent_
 
                 if node_already_in_tree:
                     # Search new node
@@ -102,12 +102,10 @@ class RRT(RRTPlanner):
         self.node_to_cost_[state_new.get_value()] = self.cost_to_node(state_new.get_value())
 
         ## Add state_new to graph nodes
-        self.nodes_list_.append(state_new.get_value())
+        self.append_node(state_new.get_value())
 
         ## Increment node count
         self.node_count_ += 1
-
-        self.add_edge(state_nearest.get_value(), state_new.get_value())
 
         # Add node to tree builder to keep track of the neighbors of each node in the graph
         self.tree_builder_.add_node(state_nearest.get_value(), state_new.get_value())

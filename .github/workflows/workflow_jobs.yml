@@ -19,15 +19,17 @@ jobs:
       #   run: |
       #     sudo apt install 
 
+      # Same pinned versions as the Docker image
       - name: Install libraries
         run: |
-          python3 -m pip install -U pygame --user
-          pip install rtree
-          pip install -U scikit-learn
-          pip install pyglet --user
-          pip install opencv-python
+          pip install -r python-scripts/requirements.txt
 
       - name: Run main.py
         run: |
           cd python-scripts/
           python3 main_test.py
+
+      - name: Run unit tests
+        run: |
+          cd python-scripts/
+          python3 -m unittest discover -p "test_*.py" -v
